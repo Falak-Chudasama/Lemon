@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Coconut</string>
+    <string name="device_admin_description">Coconut Device Policy Controller. Enforces The Snap app suspension, adult-content DNS shield, and self-protection.</string>
 </resources>

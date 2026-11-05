@@ -1,0 +1,112 @@
+package com.coconut.data
+
+import android.content.Context
+import androidx.room.Database
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+
+@Database(
+    entities = [
+        SnappedAppEntity::class,
+        ProtectionConfigurationEntity::class,
+        DevicePolicyStateEntity::class,
+        SecurityAuditEventEntity::class
+    ],
+    version = 3,
+    exportSchema = false
+)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun snappedAppDao(): SnappedAppDao
+    abstract fun protectionConfigDao(): ProtectionConfigDao
+    abstract fun devicePolicyStateDao(): DevicePolicyStateDao
+    abstract fun securityAuditDao(): SecurityAuditDao
+
+    companion object {
+        @Volatile
+        private var INSTANCE: AppDatabase? = null
+
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Migrate snapped_apps schema
+                db.execSQL("ALTER TABLE snapped_apps ADD COLUMN firstSnappedAt INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE snapped_apps ADD COLUMN lastAppliedAt INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE snapped_apps ADD COLUMN desiredState TEXT NOT NULL DEFAULT 'SUSPENDED'")
+                db.execSQL("ALTER TABLE snapped_apps ADD COLUMN actualState TEXT NOT NULL DEFAULT 'SNAPPED — PROTECTED'")
+                db.execSQL("ALTER TABLE snapped_apps ADD COLUMN installationState TEXT NOT NULL DEFAULT 'INSTALLED'")
+                db.execSQL("ALTER TABLE snapped_apps ADD COLUMN lastError TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE snapped_apps ADD COLUMN createdAt INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE snapped_apps ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+
+                // Update timestamps from existing snappedAt if present
+                db.execSQL("UPDATE snapped_apps SET firstSnappedAt = snappedAt, lastAppliedAt = snappedAt, createdAt = snappedAt, updatedAt = snappedAt WHERE firstSnappedAt = 0")
+
+                // Create protection_config
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS protection_config (
+                        id INTEGER PRIMARY KEY NOT NULL,
+                        contentShieldEnabled INTEGER NOT NULL,
+                        dnsProviderName TEXT NOT NULL,
+                        dnsHostname TEXT NOT NULL,
+                        selfProtectionEnabled INTEGER NOT NULL,
+                        disallowConfigVpn INTEGER NOT NULL,
+                        disallowDebugging INTEGER NOT NULL,
+                        disallowUnknownSources INTEGER NOT NULL,
+                        disallowSafeBoot INTEGER NOT NULL,
+                        disallowFactoryReset INTEGER NOT NULL,
+                        disallowAppsControl INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+
+                // Create device_policy_state
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS device_policy_state (
+                        id INTEGER PRIMARY KEY NOT NULL,
+                        isDeviceOwner INTEGER NOT NULL,
+                        isUninstallBlocked INTEGER NOT NULL,
+                        activeDnsMode TEXT NOT NULL,
+                        activeDnsHost TEXT,
+                        isDnsProtected INTEGER NOT NULL,
+                        totalSnappedCount INTEGER NOT NULL,
+                        activeSnappedCount INTEGER NOT NULL,
+                        lastReconciledAt INTEGER NOT NULL,
+                        reconciliationStatus TEXT NOT NULL
+                    )
+                """.trimIndent())
+
+                // Create security_audit_events
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS security_audit_events (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        eventType TEXT NOT NULL,
+                        target TEXT,
+                        details TEXT NOT NULL,
+                        severity TEXT NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE protection_config ADD COLUMN disallowConfigPrivateDns INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+
+        fun get(context: Context): AppDatabase {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: Room.databaseBuilder(
+                    context.applicationContext,
+                    AppDatabase::class.java,
+                    "coconut_snap.db"
+                )
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .build()
+                    .also { INSTANCE = it }
+            }
+        }
+    }
+}
