@@ -1,7 +1,6 @@
 package com.coconut.data
 
 import android.content.Context
-import com.coconut.policy.PolicyResult
 import kotlinx.coroutines.flow.Flow
 
 class SnapRepository(context: Context) {
@@ -13,14 +12,11 @@ class SnapRepository(context: Context) {
         packageName: String,
         applicationName: String,
         category: String
-    ): PolicyResult = repo.snapApp(packageName, applicationName, category)
+    ): Result<Unit> = repo.snapApp(packageName, applicationName, category)
 
-    suspend fun emergencyRecoveryUnsnap(packageName: String): PolicyResult =
-        repo.emergencyRecoveryUnsnap(packageName)
+    suspend fun removeSnap(packageName: String): Result<Unit> =
+        repo.removeSnap(packageName)
 
-    suspend fun reconcile() {
-        repo.reconcile("SNAP_REPO_CALL")
-    }
-
-    fun isDeviceOwner(): Boolean = repo.isDeviceOwner()
+    fun isAccessibilityPermissionGranted(): Boolean =
+        repo.isAccessibilityPermissionGranted()
 }

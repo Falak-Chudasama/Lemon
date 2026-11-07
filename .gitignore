@@ -1,16 +1,30 @@
 *.iml
 .gradle
 /local.properties
+local.properties
+.idea/
 /.idea/
+.idea_backup_unsupported_modules/
 .DS_Store
 /build
+build/
+app/build/
 /captures
 .externalNativeBuild
 .cxx
-local.properties
-build/
-app/build/
-.idea_backup_unsupported_modules/
 .kotlin/
 
+# Keystores & Signing Secrets
+*.jks
+*.keystore
+signing.properties
+*.pepk
 
+# APK & Bundle outputs
+*.apk
+*.aab
+
+# Logs & Captures
+*.log
+captures/
+test-reports/

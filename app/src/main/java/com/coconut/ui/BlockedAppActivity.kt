@@ -1,5 +1,6 @@
 package com.coconut.ui
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -33,21 +34,29 @@ import com.coconut.R
 
 class BlockedAppActivity : ComponentActivity() {
 
+    companion object {
+        const val EXTRA_PACKAGE_NAME = "extra_package_name"
+        const val EXTRA_APP_LABEL = "extra_app_label"
+        const val ACTION_BLOCKED_APP = "com.coconut.action.BLOCKED_APP"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val appName = intent.getStringExtra("app_name") ?: "This app"
+        val appLabel = intent.getStringExtra(EXTRA_APP_LABEL)
+            ?: intent.getStringExtra("app_name")
+            ?: "This application"
 
         setContent {
             CoconutTheme {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.65f))
+                        .background(Color.Black.copy(alpha = 0.75f))
                         .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Card(
-                        shape = RoundedCornerShape(28.dp),
+                        shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surface
                         ),
@@ -63,44 +72,50 @@ class BlockedAppActivity : ComponentActivity() {
                             Image(
                                 painter = painterResource(id = R.drawable.ic_coconut_logo),
                                 contentDescription = "Coconut Logo",
-                                modifier = Modifier.size(68.dp)
+                                modifier = Modifier.size(64.dp)
                             )
 
-                            Spacer(modifier = Modifier.height(20.dp))
+                            Spacer(modifier = Modifier.height(18.dp))
 
                             Text(
-                                text = "App is Snapped",
-                                style = MaterialTheme.typography.headlineMedium,
+                                text = "Application Snapped",
+                                style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
 
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             Text(
-                                text = "$appName has been permanently snapped by Coconut.\nIt cannot be launched.",
+                                text = "$appLabel is currently restricted by Coconut.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                lineHeight = 20.sp
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
-                            Spacer(modifier = Modifier.height(28.dp))
+                            Spacer(modifier = Modifier.height(24.dp))
 
                             Button(
-                                onClick = { finish() },
-                                shape = RoundedCornerShape(20.dp),
+                                onClick = {
+                                    val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                                        addCategory(Intent.CATEGORY_HOME)
+                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                    }
+                                    startActivity(homeIntent)
+                                    finish()
+                                },
+                                shape = RoundedCornerShape(16.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary,
                                     contentColor = MaterialTheme.colorScheme.onPrimary
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(50.dp)
+                                    .height(48.dp)
                             ) {
                                 Text(
-                                    text = "Head Back",
-                                    style = MaterialTheme.typography.titleMedium,
+                                    text = "Return Home",
+                                    style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }

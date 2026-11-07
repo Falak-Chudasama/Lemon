@@ -7,15 +7,12 @@ import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.coconut.data.CoconutRepository
-import com.coconut.data.DevicePolicyStateEntity
-import com.coconut.data.ProtectionConfigurationEntity
-import com.coconut.data.SecurityAuditEventEntity
-import com.coconut.data.SnapState
+import com.coconut.data.DnsConfigurationEntity
+import com.coconut.data.DomainRuleEntity
 import com.coconut.data.SnappedAppEntity
-import com.coconut.dns.DnsConnectivityTester
-import com.coconut.dns.DnsTestResult
-import com.coconut.policy.PolicyResult
-import com.coconut.policy.PrivateDnsStatus
+import com.coconut.data.StrictModeConfigEntity
+import com.coconut.dns.CoconutVpnService
+import com.coconut.service.SnapAccessibilityService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,38 +21,43 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+enum class NavigationTab {
+    SNAP,
+    DNS,
+    SETTINGS
+}
+
+data class InstalledApp(
+    val packageName: String,
+    val label: String,
+    val category: String,
+    val isSystemApp: Boolean
+)
+
 data class MainUiState(
-    val selectedTab: NavigationTab = NavigationTab.HOME,
+    val selectedTab: NavigationTab = NavigationTab.SNAP,
     val isLoading: Boolean = false,
-    val isDeviceOwner: Boolean = false,
-    val isDeviceAdmin: Boolean = false,
-    val showSetupDialog: Boolean = false,
-    val isSelfProtectionActive: Boolean = false,
+    val isAccessibilityGranted: Boolean = false,
+    val isVpnRunning: Boolean = false,
+    val isVpnPrepared: Boolean = false,
+    val isStrictModeActive: Boolean = false,
     val installedApps: List<InstalledApp> = emptyList(),
     val snappedApps: List<SnappedAppEntity> = emptyList(),
-    val protectionConfig: ProtectionConfigurationEntity? = null,
-    val devicePolicyState: DevicePolicyStateEntity? = null,
-    val auditEvents: List<SecurityAuditEventEntity> = emptyList(),
-    val privateDnsStatus: PrivateDnsStatus? = null,
-    val dnsTestResult: DnsTestResult? = null,
-    val isTestingDns: Boolean = false,
+    val domainRules: List<DomainRuleEntity> = emptyList(),
+    val dnsConfig: DnsConfigurationEntity? = null,
+    val strictModeConfig: StrictModeConfigEntity? = null,
     val searchQuery: String = "",
-    val selectedCategory: String = "All",
-    val includeSystemApps: Boolean = false,
-    val sortOrder: AppSortOrder = AppSortOrder.NAME_ASC,
-    val showRegistryTab: Boolean = false,
-    val errorMessage: String? = null,
-    val successMessage: String? = null,
-    val activeSnapTarget: InstalledApp? = null,
-    val activeBlockedTarget: InstalledApp? = null,
-    val showRecoveryDialog: Boolean = false,
-    val recoveryTargetApp: SnappedAppEntity? = null
+    val domainFilterQuery: String = "",
+    val selectedRuleTab: String = "BLOCK", // "BLOCK" or "ALLOW"
+    val isUpdatingBlocklist: Boolean = false,
+    val blocklistStatus: String? = null,
+    val bannerMessage: String? = null,
+    val errorMessage: String? = null
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
-    private val repo = CoconutRepository(application)
+    val repo = CoconutRepository(application)
     private val pm = application.packageManager
-    private val dnsTester = DnsConnectivityTester()
 
     private val _state = MutableStateFlow(MainUiState())
     val state: StateFlow<MainUiState> = _state.asStateFlow()
@@ -63,6 +65,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     init {
         observeData()
         refresh()
+        loadInstalledApps()
     }
 
     private fun observeData() {
@@ -73,21 +76,61 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch {
-            repo.observeProtectionConfig().collect { config ->
-                _state.update { it.copy(protectionConfig = config) }
+            repo.observeDomainRules().collect { rules ->
+                _state.update { it.copy(domainRules = rules) }
             }
         }
 
         viewModelScope.launch {
-            repo.observeDevicePolicyState().collect { policyState ->
-                _state.update { it.copy(devicePolicyState = policyState) }
+            repo.observeDnsConfig().collect { config ->
+                _state.update { it.copy(dnsConfig = config) }
             }
         }
 
         viewModelScope.launch {
-            repo.observeAuditEvents().collect { events ->
-                _state.update { it.copy(auditEvents = events) }
+            repo.observeStrictModeConfig().collect { strict ->
+                _state.update {
+                    it.copy(
+                        strictModeConfig = strict,
+                        isStrictModeActive = repo.strictModeManager.isStrictProtectionActive()
+                    )
+                }
             }
+        }
+
+        viewModelScope.launch {
+            SnapAccessibilityService.isRunning.collect { running ->
+                _state.update { it.copy(isAccessibilityGranted = running || repo.isAccessibilityPermissionGranted()) }
+            }
+        }
+
+        viewModelScope.launch {
+            CoconutVpnService.isVpnRunning.collect { running ->
+                _state.update { it.copy(isVpnRunning = running) }
+            }
+        }
+
+        viewModelScope.launch {
+            repo.blocklistManager.isUpdating.collect { updating ->
+                _state.update { it.copy(isUpdatingBlocklist = updating) }
+            }
+        }
+
+        viewModelScope.launch {
+            repo.blocklistManager.lastUpdateStatus.collect { status ->
+                _state.update { it.copy(blocklistStatus = status) }
+            }
+        }
+    }
+
+    fun refresh() {
+        _state.update {
+            it.copy(
+                isAccessibilityGranted = repo.isAccessibilityPermissionGranted(),
+                isVpnRunning = CoconutVpnService.isVpnRunning.value,
+                isVpnPrepared = repo.isVpnPermissionPrepared(),
+                isStrictModeActive = repo.strictModeManager.isStrictProtectionActive()
+            )
         }
     }
 
@@ -99,358 +142,181 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _state.update { it.copy(searchQuery = query) }
     }
 
-    fun setSelectedCategory(category: String) {
-        _state.update { it.copy(selectedCategory = category) }
+    fun setDomainFilterQuery(query: String) {
+        _state.update { it.copy(domainFilterQuery = query) }
     }
 
-    fun setIncludeSystemApps(include: Boolean) {
-        _state.update { it.copy(includeSystemApps = include) }
-        loadInstalledApps()
+    fun setSelectedRuleTab(tab: String) {
+        _state.update { it.copy(selectedRuleTab = tab) }
     }
 
-    fun setSortOrder(order: AppSortOrder) {
-        _state.update { it.copy(sortOrder = order) }
+    fun clearBanner() {
+        _state.update { it.copy(bannerMessage = null, errorMessage = null) }
     }
 
-    fun setShowRegistryTab(show: Boolean) {
-        _state.update { it.copy(showRegistryTab = show) }
-    }
+    // --- 1. SNAP ACTIONS ---
 
-    fun dismissSetupDialog() {
-        _state.update { it.copy(showSetupDialog = false) }
-    }
-
-    fun openSetupDialog() {
-        _state.update { it.copy(showSetupDialog = true) }
-    }
-
-    fun refresh() {
-        viewModelScope.launch {
-            val isDO = repo.isDeviceOwner()
-            val isAdmin = repo.policyManager.isDeviceAdmin()
-            val selfProtection = repo.policyManager.isSelfProtectionActive()
-            val dnsStatus = repo.policyManager.getPrivateDnsStatus()
-
-            _state.update {
-                it.copy(
-                    isDeviceOwner = isDO,
-                    isDeviceAdmin = isAdmin,
-                    showSetupDialog = !isDO && it.showSetupDialog,
-                    isSelfProtectionActive = selfProtection,
-                    privateDnsStatus = dnsStatus
-                )
-            }
-            loadInstalledApps()
-        }
-    }
-
-    fun reconcileNow() {
-        viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
-            val summary = repo.reconcile("USER_REQUEST")
-            val dnsStatus = repo.policyManager.getPrivateDnsStatus()
-            val selfProtection = repo.policyManager.isSelfProtectionActive()
-
-            _state.update {
-                it.copy(
-                    isLoading = false,
-                    isDeviceOwner = summary.isDeviceOwner,
-                    isDeviceAdmin = repo.policyManager.isDeviceAdmin(),
-                    isSelfProtectionActive = selfProtection,
-                    privateDnsStatus = dnsStatus,
-                    successMessage = if (summary.success) {
-                        "Verification complete: ${summary.totalSnapped} snapped apps checked. Policies verified."
-                    } else null,
-                    errorMessage = if (!summary.success) {
-                        summary.errors.firstOrNull() ?: "Policy synchronization detected issues."
-                    } else null
-                )
-            }
-            loadInstalledApps()
-        }
-    }
-
-    private fun loadInstalledApps() {
+    fun loadInstalledApps() {
         viewModelScope.launch(Dispatchers.IO) {
-            val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-            val launchableApps = pm.queryIntentActivities(launcherIntent, PackageManager.MATCH_ALL)
-                .asSequence()
-                .map { it.activityInfo.applicationInfo }
-                .distinctBy { it.packageName }
-                .toList()
+            _state.update { it.copy(isLoading = true) }
+            val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+            val launchIntent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
+            val launchablePackages = pm.queryIntentActivities(launchIntent, 0).map { it.activityInfo.packageName }.toSet()
 
-            val ownPackage = getApplication<Application>().packageName
-            val includeSys = _state.value.includeSystemApps
-
-            val apps = launchableApps
-                .filter { info -> info.packageName != ownPackage }
-                .filter { info ->
-                    if (includeSys) true
-                    else (info.flags and ApplicationInfo.FLAG_SYSTEM) == 0
-                }
+            val apps = packages
+                .filter { it.packageName != getApplication<Application>().packageName && launchablePackages.contains(it.packageName) }
                 .map { info ->
                     val isSystem = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-                    val isProtected = repo.safePackageHelper.isProtectedPackage(info.packageName)
-                    val protectionReason = repo.safePackageHelper.getProtectionReason(info.packageName)
-                    val isSuspended = repo.policyManager.isPackageSuspended(info.packageName)
-
                     InstalledApp(
                         packageName = info.packageName,
-                        applicationName = info.loadLabel(pm).toString(),
-                        category = classify(info),
-                        isSystemApp = isSystem,
-                        isProtected = isProtected,
-                        protectionReason = protectionReason,
-                        isSuspended = isSuspended,
-                        icon = null
+                        label = pm.getApplicationLabel(info).toString(),
+                        category = if (isSystem) "System" else "User",
+                        isSystemApp = isSystem
                     )
                 }
+                .sortedBy { it.label.lowercase() }
 
-            withContext(Dispatchers.Main) {
-                _state.update { it.copy(installedApps = apps) }
-            }
+            _state.update { it.copy(installedApps = apps, isLoading = false) }
         }
     }
 
-    private fun classify(info: ApplicationInfo): String {
-        return when {
-            info.category == ApplicationInfo.CATEGORY_GAME -> "Games"
-            info.category == ApplicationInfo.CATEGORY_AUDIO -> "Entertainment"
-            info.category == ApplicationInfo.CATEGORY_VIDEO -> "Entertainment"
-            info.category == ApplicationInfo.CATEGORY_IMAGE -> "Entertainment"
-            info.category == ApplicationInfo.CATEGORY_SOCIAL -> "Social"
-            info.category == ApplicationInfo.CATEGORY_NEWS -> "Social"
-            info.category == ApplicationInfo.CATEGORY_PRODUCTIVITY -> "Productivity"
-            info.category == ApplicationInfo.CATEGORY_MAPS -> "Utilities"
-            else -> {
-                val pkg = info.packageName.lowercase()
-                when {
-                    listOf("instagram", "facebook", "reddit", "twitter", "x.com", "snapchat", "discord", "linkedin", "threads", "tiktok").any { it in pkg } -> "Social"
-                    listOf("youtube", "netflix", "spotify", "primevideo", "disney", "twitch", "vlc", "music").any { it in pkg } -> "Entertainment"
-                    listOf("docs", "sheets", "office", "word", "excel", "drive", "todo", "slack", "notion").any { it in pkg } -> "Productivity"
-                    listOf("whatsapp", "telegram", "messenger", "signal", "messages", "mail", "gmail", "meet", "zoom").any { it in pkg } -> "Communication"
-                    listOf("camera", "gallery", "clock", "calculator", "chrome", "browser", "settings", "files").any { it in pkg } -> "Utilities"
-                    else -> "Other"
-                }
-            }
-        }
-    }
-
-    // --- SNAP ACTIONS ---
-
-    fun requestSnap(app: InstalledApp) {
-        _state.update { it.copy(activeSnapTarget = app, errorMessage = null) }
-    }
-
-    fun dismissSnapRequest() {
-        _state.update { it.copy(activeSnapTarget = null) }
-    }
-
-    fun executeSnap(app: InstalledApp) {
+    fun toggleSnap(app: InstalledApp) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, activeSnapTarget = null, errorMessage = null) }
-            val result = repo.snapApp(app.packageName, app.applicationName, app.category)
-            when (result) {
-                is PolicyResult.AppliedAndVerified -> {
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            successMessage = "Application ${app.applicationName} permanently Snapped and verified."
-                        )
+            val isAlreadySnapped = _state.value.snappedApps.any { it.packageName == app.packageName }
+            if (isAlreadySnapped) {
+                repo.removeSnap(app.packageName)
+                _state.update { it.copy(bannerMessage = "Unsnapped ${app.label}") }
+            } else {
+                val result = repo.snapApp(app.packageName, app.label, app.category)
+                result.fold(
+                    onSuccess = {
+                        _state.update { it.copy(bannerMessage = "Snapped ${app.label}") }
+                    },
+                    onFailure = { error ->
+                        _state.update { it.copy(errorMessage = error.message) }
                     }
-                    refresh()
-                }
-                is PolicyResult.PartiallyApplied -> {
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            successMessage = "Application ${app.applicationName} suspended (uninstall lock partial)."
-                        )
-                    }
-                    refresh()
-                }
-                is PolicyResult.AwaitingDeviceOwner -> {
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = result.message
-                        )
-                    }
-                    refresh()
-                }
-                else -> {
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = result.errorMessage ?: "Failed to snap application."
-                        )
-                    }
-                }
+                )
             }
         }
     }
 
-    fun showBlockedDialog(app: InstalledApp) {
-        _state.update { it.copy(activeBlockedTarget = app) }
-    }
+    // --- 2. LOCAL DNS ACTIONS ---
 
-    fun dismissBlockedDialog() {
-        _state.update { it.copy(activeBlockedTarget = null) }
-    }
-
-    // --- CONTENT SHIELD ACTIONS ---
-
-    fun toggleContentShield(enabled: Boolean) {
+    fun toggleDns(enable: Boolean) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
-            val result = repo.setContentShield(enabled)
-            when (result) {
-                is PolicyResult.AppliedAndVerified -> {
-                    val dnsStatus = repo.policyManager.getPrivateDnsStatus()
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            privateDnsStatus = dnsStatus,
-                            successMessage = if (enabled) "Content Shield enabled and verified." else "Content Shield disabled. Default Android DNS restored."
-                        )
-                    }
+            repo.setDnsServiceEnabled(enable)
+            refresh()
+        }
+    }
+
+    fun addDomain(rawDomain: String, ruleType: String) {
+        viewModelScope.launch {
+            val result = repo.addDomainRule(rawDomain, ruleType)
+            result.fold(
+                onSuccess = { domain ->
+                    _state.update { it.copy(bannerMessage = "Added $domain to $ruleType list") }
+                },
+                onFailure = { error ->
+                    _state.update { it.copy(errorMessage = error.message) }
                 }
-                is PolicyResult.AwaitingDeviceOwner -> {
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = result.message
-                        )
-                    }
-                }
-                else -> {
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = result.errorMessage ?: "Content Shield operation failed."
-                        )
-                    }
-                }
+            )
+        }
+    }
+
+    fun addBulkDomains(text: String, ruleType: String) {
+        viewModelScope.launch {
+            val (added, invalid) = repo.addBulkDomains(text, ruleType)
+            _state.update {
+                it.copy(
+                    bannerMessage = "Added $added domains" + (if (invalid > 0) " ($invalid invalid skipped)" else "")
+                )
             }
         }
     }
 
-    fun selectDnsProvider(hostname: String) {
+    fun deleteDomain(domain: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
-            val currentlyEnabled = _state.value.protectionConfig?.contentShieldEnabled ?: false
-            val result = repo.setContentShield(enabled = currentlyEnabled, providerHostname = hostname)
-            when (result) {
-                is PolicyResult.AppliedAndVerified -> {
-                    val dnsStatus = repo.policyManager.getPrivateDnsStatus()
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            privateDnsStatus = dnsStatus,
-                            successMessage = "DNS Provider set to $hostname"
-                        )
-                    }
-                }
-                else -> {
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = result.errorMessage ?: "Failed to switch DNS provider."
-                        )
-                    }
-                }
+            repo.deleteDomainRule(domain)
+        }
+    }
+
+    fun toggleDomainRule(rule: DomainRuleEntity) {
+        viewModelScope.launch {
+            repo.toggleDomainRule(rule)
+        }
+    }
+
+    fun clearDomainRules(type: String) {
+        viewModelScope.launch {
+            repo.clearRules(type)
+            _state.update { it.copy(bannerMessage = "Cleared all $type rules") }
+        }
+    }
+
+    fun updateDnsConfiguration(
+        blockThreats: Boolean? = null,
+        blockAdultContent: Boolean? = null,
+        blockAds: Boolean? = null,
+        autoUpdate: Boolean? = null,
+        wifiOnly: Boolean? = null
+    ) {
+        viewModelScope.launch {
+            repo.updateDnsConfiguration(blockThreats, blockAdultContent, blockAds, autoUpdate, wifiOnly)
+        }
+    }
+
+    fun triggerBlocklistUpdate() {
+        viewModelScope.launch {
+            val wifiOnly = _state.value.dnsConfig?.wifiOnly ?: true
+            repo.blocklistManager.updateBlocklist(wifiOnly = wifiOnly)
+        }
+    }
+
+    // --- 3. STRICT MODE ACTIONS ---
+
+    fun setStrictMode(enabled: Boolean, passcode: String? = null) {
+        viewModelScope.launch {
+            repo.setStrictModeEnabled(enabled, passcode)
+            _state.update {
+                it.copy(
+                    isStrictModeActive = repo.strictModeManager.isStrictProtectionActive(),
+                    bannerMessage = if (enabled) "Strict Mode enabled" else "Strict Mode disabled"
+                )
             }
         }
     }
 
-    fun testDnsConnectivity() {
-        val hostname = _state.value.protectionConfig?.dnsHostname ?: "family-filter-dns.cleanbrowsing.org"
+    fun startUnlockCountdown() {
         viewModelScope.launch {
-            _state.update { it.copy(isTestingDns = true, dnsTestResult = null) }
-            val result = dnsTester.testProvider(hostname)
-            _state.update { it.copy(isTestingDns = false, dnsTestResult = result) }
+            repo.startUnlockCountdown()
         }
     }
 
-    // --- OPTIONAL HARDENING RESTRICTIONS ---
-
-    fun setHardeningRestriction(restriction: String, enabled: Boolean) {
+    fun completeUnlock() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
-            val result = repo.setAdvancedRestriction(restriction, enabled)
-            when (result) {
-                is PolicyResult.AppliedAndVerified -> {
-                    val dnsStatus = repo.policyManager.getPrivateDnsStatus()
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            privateDnsStatus = dnsStatus,
-                            successMessage = "Device policy updated successfully."
-                        )
-                    }
+            val unlocked = repo.completeUnlockAfterCountdown()
+            if (unlocked) {
+                _state.update {
+                    it.copy(
+                        isStrictModeActive = false,
+                        bannerMessage = "Temporary 15-minute Settings window active"
+                    )
                 }
-                else -> {
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = result.errorMessage ?: "Failed to update device policy."
-                        )
-                    }
-                }
+            } else {
+                _state.update { it.copy(errorMessage = "Unlock countdown still active") }
             }
         }
     }
 
-    // --- EXCEPTIONAL EMERGENCY RECOVERY ---
-
-    fun openEmergencyRecoveryDialog() {
-        val snapped = _state.value.snappedApps.firstOrNull()
-        _state.update { it.copy(showRecoveryDialog = true, recoveryTargetApp = snapped) }
-    }
-
-    fun selectRecoveryApp(app: SnappedAppEntity) {
-        _state.update { it.copy(recoveryTargetApp = app) }
-    }
-
-    fun dismissEmergencyRecoveryDialog() {
-        _state.update { it.copy(showRecoveryDialog = false, recoveryTargetApp = null) }
-    }
-
-    fun executeEmergencyRecovery(packageName: String) {
+    fun cancelUnlock() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, showRecoveryDialog = false, errorMessage = null) }
-            val result = repo.emergencyRecoveryUnsnap(packageName)
-            when (result) {
-                is PolicyResult.AppliedAndVerified -> {
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            successMessage = "Emergency recovery completed. Package $packageName restored."
-                        )
-                    }
-                    refresh()
-                }
-                else -> {
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = result.errorMessage ?: "Emergency recovery failed."
-                        )
-                    }
-                }
-            }
+            repo.cancelUnlockCountdown()
         }
     }
 
-    fun showErrorMessage(msg: String) {
-        _state.update { it.copy(errorMessage = msg) }
-    }
+    // --- 4. EXPORT & IMPORT ---
 
-    fun showSuccessMessage(msg: String) {
-        _state.update { it.copy(successMessage = msg) }
-    }
+    suspend fun exportRules(): String = repo.exportRulesToPlainText()
 
-    fun clearMessages() {
-        _state.update { it.copy(errorMessage = null, successMessage = null) }
-    }
+    suspend fun importRules(content: String): Pair<Int, Int> = repo.importRulesFromPlainText(content)
 }

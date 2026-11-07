@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -5,37 +7,62 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val localProperties = Properties().apply {
+    val localPropFile = rootProject.file("local.properties")
+    if (localPropFile.exists()) {
+        localPropFile.inputStream().use { load(it) }
+    }
+}
+
 android {
     namespace = "com.coconut"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.coconut"
         minSdk = 29
-        targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        targetSdk = 36
+        versionCode = 3
+        versionName = "2.0.0"
+        manifestPlaceholders["appLabel"] = "Coconut"
     }
 
     signingConfigs {
         create("release") {
-            val keystoreFile = file("../coconut-release.jks")
+            val configuredPath = System.getenv("COCONUT_KEYSTORE_PATH")
+                ?: (project.findProperty("COCONUT_KEYSTORE_PATH") as? String)
+                ?: localProperties.getProperty("COCONUT_KEYSTORE_PATH")
+                ?: (System.getProperty("user.home") + "/.coconut/keystore/coconut-release.jks")
+
+            var keystoreFile = file(configuredPath)
+            if (!keystoreFile.exists()) {
+                val fallbackRepoKeystore = rootProject.file("coconut-release.jks")
+                if (fallbackRepoKeystore.exists()) {
+                    keystoreFile = fallbackRepoKeystore
+                }
+            }
+
             if (keystoreFile.exists()) {
                 storeFile = keystoreFile
-                // Move credentials out of hardcoded source with external property lookup
-                storePassword = (project.findProperty("COCONUT_KEYSTORE_PASSWORD") as? String)
-                    ?: System.getenv("COCONUT_KEYSTORE_PASSWORD")
-                    ?: "coconut_release_key"
-                keyAlias = (project.findProperty("COCONUT_KEY_ALIAS") as? String)
-                    ?: System.getenv("COCONUT_KEY_ALIAS")
+                storePassword = System.getenv("COCONUT_KEYSTORE_PASSWORD")
+                    ?: (project.findProperty("COCONUT_KEYSTORE_PASSWORD") as? String)
+                    ?: localProperties.getProperty("COCONUT_KEYSTORE_PASSWORD")
+                    ?: throw GradleException("COCONUT_KEYSTORE_PASSWORD is not configured.")
+
+                keyAlias = System.getenv("COCONUT_KEY_ALIAS")
+                    ?: (project.findProperty("COCONUT_KEY_ALIAS") as? String)
+                    ?: localProperties.getProperty("COCONUT_KEY_ALIAS")
                     ?: "coconut"
-                keyPassword = (project.findProperty("COCONUT_KEY_PASSWORD") as? String)
-                    ?: System.getenv("COCONUT_KEY_PASSWORD")
-                    ?: "coconut_release_key"
+
+                keyPassword = System.getenv("COCONUT_KEY_PASSWORD")
+                    ?: (project.findProperty("COCONUT_KEY_PASSWORD") as? String)
+                    ?: localProperties.getProperty("COCONUT_KEY_PASSWORD")
+                    ?: throw GradleException("COCONUT_KEY_PASSWORD is not configured.")
+
                 enableV1Signing = true
                 enableV2Signing = true
+            } else {
+                throw GradleException("Release keystore not found at: ${keystoreFile.absolutePath}")
             }
         }
     }
@@ -45,20 +72,16 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")
+            manifestPlaceholders["appLabel"] = "Coconut"
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
         debug {
-            applicationIdSuffix = ""
+            applicationIdSuffix = ".debug"
+            manifestPlaceholders["appLabel"] = "Coconut (Debug)"
             isDebuggable = true
-        }
-        create("benchmark") {
-            initWith(buildTypes.getByName("release"))
-            matchingFallbacks += listOf("release")
-            isDebuggable = false
-            signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -92,7 +115,6 @@ kapt {
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
-    androidTestImplementation(composeBom)
 
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.10.0")
@@ -114,11 +136,4 @@ dependencies {
     kapt("androidx.room:room-compiler:2.6.1")
 
     implementation("androidx.work:work-runtime-ktx:2.9.1")
-
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
-    testImplementation("androidx.arch.core:core-testing:2.2.0")
-    testImplementation("androidx.room:room-testing:2.6.1")
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
 }

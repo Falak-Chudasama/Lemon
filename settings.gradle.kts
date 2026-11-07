@@ -16,4 +16,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "Coconut"
 include(":app")
-include(":macrobenchmark")

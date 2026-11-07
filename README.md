@@ -1,201 +1,181 @@
-# Coconut — Privacy-First Native Android Device Policy Controller (DPC)
+# Coconut
 
-Coconut is a native, offline-first Android device-management application built in Kotlin and Jetpack Compose. It is designed from the ground up for privacy, extreme simplicity, and permanent hardware-enforced device management.
+Coconut is a native, privacy-first Android personal self-control and local DNS filtering application built with Kotlin and Jetpack Compose.
 
----
-
-## 1. Absolute Device and User Data Safety Invariant
-
-Coconut operates strictly **ON TOP OF** the existing Android operating system. It is a self-control and application-restriction layer, **NOT** a destructive device-management tool. 
-
-### 1.1 Non-Destructive Operation
-Coconut guarantees 100% device and personal data integrity:
-- **Zero Wiping**: Under no circumstances does Coconut invoke `DevicePolicyManager.wipeData()`, trigger factory resets, recovery wipes, or device formatting. The `<wipe-data />` policy directive has been strictly purged from `device_admin.xml`.
-- **Zero File Tampering**: Coconut never deletes, accesses, or modifies photographs, videos, documents, downloads, messages, contacts, or personal files.
-- **Zero App Data Deletion**: Coconut restricts applications using Android's native package suspension (`DevicePolicyManager.setPackagesSuspended()`). Suspending an app restricts its launch capability at the OS kernel/framework level; it **never** clears application storage, user databases, or app data.
-- **Zero Account Modification**: Coconut never deletes user accounts, Google accounts, or work accounts.
-- **Zero Destructive Shell Commands**: Coconut never executes destructive ADB or shell scripts.
-- **Non-Destructive Database Versioning**: Coconut uses structured, non-destructive SQLite migrations (`MIGRATION_1_2`, `MIGRATION_2_3`) that safely preserve the Snap Registry, user audit logs, and settings across all upgrades.
-
-### 1.2 Protected Critical System Allowlist
-To guarantee that the phone can never be bricked or locked out, `SafePackageHelper` enforces a non-suspendable allowlist for core system services:
-- Android System UI (`com.android.systemui`)
-- Active Home Launcher (resolved dynamically via `CATEGORY_HOME`)
-- System Settings (`com.android.settings`, `com.google.android.settings`)
-- Input Method Editor / Soft Keyboard (`InputMethodManager`)
-- Telephony & Emergency Services (`com.android.phone`, `com.android.dialer`, `com.google.android.dialer`, `com.samsung.android.dialer`, `com.android.server.telecom`, `com.android.emergency`)
-- Package Installer & Permissions (`com.android.packageinstaller`, `com.android.permissioncontroller`)
-- Google Play Services (`com.google.android.gms`, `com.android.vending`)
-- Coconut itself (`com.coconut`)
+It operates entirely on-device without cloud accounts, telemetry, external servers, root, Shizuku, or Device Owner requirements.
 
 ---
 
-## 2. Core Functional Pillars
+## 1. Core Capabilities
 
-### 2.1 The Snap (Permanent & Irreversible App Suspension)
-- **Frictionless Fingerprint Verification**: Tapping "Snap" triggers native biometric authentication (`BiometricPrompt` with `BIOMETRIC_STRONG or DEVICE_CREDENTIAL`). Upon verification, the target package is permanently suspended via `dpm.setPackagesSuspended()`.
-- **Fallback Confirmation**: If a device lacks biometric hardware or enrolled screen credentials, a dedicated confirmation dialog guarantees that functionality is never blocked.
-- **Irreversible Enforcement**: Once an application is snapped, it cannot be unsuspended.
-- **Launch Interception**: Any attempt to launch a snapped application is blocked by Android's package suspension mechanism, and Coconut's dedicated blocked dialog appears with a "Head Back" action.
-- **Permanent Registry**: Uninstalling a snapped application preserves its registry record as `AWAITING_INSTALLATION`. If reinstalled, Coconut detects it immediately via `PackageReconcileReceiver` and auto-resuspends it.
+### 1.1 Snap (App Launch Interception)
+- **Foreground Detection**: Utilizes an Android `AccessibilityService` (`SnapAccessibilityService`) to detect foreground window and package transitions in real time.
+- **Immediate Return Home**: Automatically triggers `GLOBAL_ACTION_HOME` the instant a snapped application enters the foreground, dismissing the distracting application with zero artificial delay.
+- **Debounce Model**: Initial blocking decisions have 0ms latency. Debounce (250ms) applies strictly to duplicate window/content events for the *same* in-progress launch. When the home launcher or any permitted application is foregrounded, the tracker resets immediately so subsequent launches are blocked instantly.
+- **Blocked Screen**: Launches a dedicated, minimal `BlockedAppActivity` confirming the block with a single "Return Home" action.
+- **Overlay Fallback**: Uses `TYPE_ACCESSIBILITY_OVERLAY` when direct Activity dispatch is constrained by the system.
+- **Persistent Registry**: Retains Snap records in local Room database even if the target application is uninstalled. If reinstalled, Coconut detects the package via `PackageReconcileReceiver` and immediately re-enforces Snap.
+- **Protected System Services**: Automatically protects phone dialers, settings, Coconut itself, active home launchers, and input methods from being snapped.
 
-### 2.2 Content Shield (Device-Wide Adult Content Filtering)
-- Enforces device-wide adult-content filtering via native DNS-over-TLS (DoT, RFC 7858) across Wi-Fi and mobile networks.
-- **Default Provider**: CleanBrowsing Family Filter (`family-filter-dns.cleanbrowsing.org`).
-- **Alternative Provider**: Cloudflare 1.1.1.1 for Families (`family.cloudflare-dns.com`).
-- **Private DNS Lock**: Enforces `UserManager.DISALLOW_CONFIG_PRIVATE_DNS` to prevent tampering with Private DNS settings in Android Settings.
-- **Live Connectivity Testing**: Features a built-in TCP port 853 socket diagnostic tool that validates DoT connectivity and displays round-trip latency.
+### 1.2 Strict Mode
+- **Tamper Resistance**: Optional protection layer designed to prevent impulsive disabling of Coconut's enforcement.
+- **Settings Hierarchy Inspection**: Monitors Android Settings windows strictly when Strict Mode is enabled and Android Settings (`com.android.settings`, `com.google.android.settings`) is in the foreground. Traversal is bounded (max depth 5, max 50 nodes) to prevent navigating into Coconut's App Info, Accessibility service toggle, VPN settings, or Private DNS configuration.
+- **PBKDF2 Passcode Hashing**: Passcode hashed using `PBKDF2WithHmacSHA256` with 100,000 iterations and a cryptographically secure 16-byte random salt (`SecureRandom`).
+- **Time-Delayed Emergency Unlock**: Requests to disable Strict Mode initiate an irreversible 15-minute countdown timer followed by a 10-minute temporary unlock window.
 
-### 2.3 Coconut Self-Protection & Device Hardening
-- **Anti-Uninstallation**: Enforces `dpm.setUninstallBlocked(admin, "com.coconut", true)` to block removal of Coconut from the device.
-- **Safe Boot Lock**: Enforces `UserManager.DISALLOW_SAFE_BOOT` to block booting into Safe Mode.
-- **Anti-Bypass Reset Lock**: Enforces `UserManager.DISALLOW_FACTORY_RESET` to prevent wiping the phone to circumvent restrictions.
-- **VPN Tamper Lock**: Enforces `UserManager.DISALLOW_CONFIG_VPN` to block third-party VPN overrides.
-- **USB Debugging Lock**: Enforces `UserManager.DISALLOW_DEBUGGING_FEATURES` to seal ADB access once configured.
-- **Sideloading Lock**: Enforces `UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES_GLOBALLY` to prevent unverified APK installations.
-- **App Control Lock**: Enforces `UserManager.DISALLOW_APPS_CONTROL` to prevent force-stopping or modifying apps.
-
----
-
-## 3. Design, Typography & Branding
-
-Coconut features a minimal, sleek, high-contrast aesthetic built with Jetpack Compose:
-- **Typography**:
-  - Headings & Titles: **Host Grotesk** (`res/font/host_grotesk_bold.ttf`).
-  - Body & Labels: **Urbanist** (`res/font/urbanist_medium.ttf`, `res/font/urbanist_regular.ttf`).
-  - Fully offline, embedded font assets requiring zero network connectivity.
-- **Color Palette & Accents**:
-  - Deep Coconut Espresso (`#603913`): High-contrast primary branding.
-  - Coconut Shell Bronze (`#8B5E3C`): Warm secondary tone.
-  - Caramel Husk (`#A97C50`): Tertiary warm highlight.
-  - Coconut Cream (`#F3E5D8`): Container backgrounds and card surfaces.
-  - Coconut Meat White (`#F5F8FA`): High-clarity light surface.
-  - Protected Green (`#2E7D32`): Active hardware-enforcement indicator.
-  - Snapped Red (`#D32F2F`): Permanent snap locked badge.
-  - Awaiting Amber (`#F57C00`): Saved preference / pending Device Owner indicator.
-- **Performance Architecture**:
-  - High-speed `AppIconCache` (in-memory LRU) offloads icon decoding from the main UI thread to `Dispatchers.IO`, preventing UI frame drops and freezing.
+### 1.3 Local DNS Engine
+- **Local Virtual TUN Interface**: Utilizes Android `VpnService` (`CoconutVpnService`) to create a DNS-only loopback tunnel (`10.255.0.1/32` IPv4, `fd00::1/128` IPv6).
+- **IP-Prefix Routing**: Android `VpnService` routes IP traffic based on destination IP address prefixes (`addRoute("10.255.0.2", 32)` and `addRoute("fd00::2", 128)`), not by transport port. Standard device TCP/UDP internet traffic is never captured (`0.0.0.0/0` is not routed). Non-DNS packets addressed to the virtual endpoint are safely dropped.
+- **UDP Port 53 Support**: Full support for IPv4 and IPv6 UDP DNS queries.
+- **Mandatory IPv6 UDP Checksums**: Computes mandatory RFC 2460 / RFC 8200 UDP checksums across the IPv6 pseudo-header for all synthetic IPv6 responses. Computes IPv4 header and UDP checksums.
+- **TCP over TUN Limitation & TCP RST**: Coconut supports UDP DNS only. It does not implement a full user-space TCP state machine (handshake, sequence/ACK tracking, sliding window, retransmissions). When a client resolver attempts a TCP connection to port 53 of the virtual DNS IP, Coconut immediately returns a standard TCP RST packet, prompting the client/OS resolver to fall back to UDP port 53 without hanging.
+- **Deterministic Domain Matching**: Subdomain matching respects DNS label boundaries (e.g. `ads.example.com` matches `example.com`, but `badexample.com` does not). Supports IDN / Punycode domain normalization.
+- **Local Policy Resolution Order**:
+  1. Built-in HaGeZi Threat Intelligence (TIF Mini).
+  2. Built-in HaGeZi Adult Content (NSFW).
+  3. User Custom Allowlist (always overrides blocklists).
+  4. User Custom Blocklist (exact domains and subdomains).
+  5. Built-in HaGeZi Multi PRO Mini (Ads & Trackers).
+  6. Default: Allow.
+- **Synthetic NXDOMAIN**: Blocked queries receive immediate locally crafted `NXDOMAIN` (RFC 1035) responses and are never forwarded to the physical network.
+- **Local Bounded LRU Cache**: Memory-bounded cache (1,024 entries) with monotonic time TTL tracking (`SystemClock.elapsedRealtime()`). Policy checks always precede cache lookup.
+- **Physical Network Forwarding**: Permitted queries are forwarded through Android's underlying physical network using `DnsResolver.rawQuery` bound to `NET_CAPABILITY_NOT_VPN` to prevent tunnel routing loops.
+- **Always-on VPN Support**: Declares `android.net.VpnService.SUPPORTS_ALWAYS_ON` in manifest without requiring VPN lockdown.
+- **Zero DNS Logging**: DNS query history is completely disabled by default for absolute privacy.
 
 ---
 
-## 4. Provisioning Device Owner Mode Safely
+## 2. Requirements
 
-Coconut distinguishes between **Device Owner Mode** (full hardware enforcement) and **Standard Mode** (preference persistence with pending enforcement).
+- **Android Version**: Android 10 (API level 29) or higher.
+- **Permissions**:
+  - Accessibility Service (`SnapAccessibilityService`): Required for foreground app launch detection.
+  - VPN Service (`CoconutVpnService`): Required for local DNS filtering.
+  - Post Notifications: Required for VPN foreground service status notification on Android 13+.
+- **No Root or Shizuku**: Standard unprivileged Android installation.
+- **No Developer Options**: ADB and USB debugging are not required.
 
-### Safety Principles
-1. **Never factory-reset your device to enable Device Owner mode.**
-2. **Never delete your personal accounts just to satisfy ADB constraints.**
-3. Coconut operates safely in Standard Mode on devices with accounts, preserving all user configurations locally without risking data loss.
+---
 
-### Method A: ADB Non-Destructive Provisioning (Fresh/Test Devices)
-On a device with no accounts configured:
-1. Connect via USB with **USB Debugging** enabled.
-2. Run the Windows batch script:
-   ```cmd
-   provision_device_owner.bat
-   ```
-   Or execute via ADB:
-   ```cmd
-   adb install -r app\build\outputs\apk\release\app-release.apk
-   adb shell dpm set-device-owner com.coconut/.policy.CoconutDeviceAdminReceiver
-   ```
-3. Verify status:
-   ```cmd
-   adb shell dumpsys device_policy | findstr "mDeviceOwner"
-   ```
+## 3. Building from Source
 
-### Method B: QR-Code Out-of-the-Box Provisioning (New Devices)
-On a brand-new, unconfigured device out of the box:
-1. Tap the initial Welcome screen 6 times consecutively to activate the built-in QR Code Scanner.
-2. Connect to Wi-Fi when prompted.
-3. Scan an administrative QR code containing:
-```json
-{
-  "android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME": "com.coconut/.policy.CoconutDeviceAdminReceiver",
-  "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION": "https://your-domain.com/downloads/Coconut-release.apk",
-  "android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM": "<SHA-256 CHECKSUM>",
-  "android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED": true,
-  "android.app.extra.PROVISIONING_SKIP_ENCRYPTION": false
-}
+### Prerequisites
+- JDK 17 (LTS)
+- Android SDK with Build-Tools 35.0.0 / 34.0.0 and Platform SDK 35
+
+### Build Commands
+
+#### Debug APK
+```bash
+.\gradlew.bat assembleDebug
 ```
+Output: `app\build\outputs\apk\debug\app-debug.apk`  
+Application ID: `com.coconut.debug` (does not collide with production)
 
----
-
-## 5. Comprehensive Switch & Control Audit Matrix
-
-Every interactive component, switch, toggle, and dialog in Coconut has been verified for 100% responsiveness and reliability:
-
-| Component | Control / Action | Architecture Path | Desired State | Enforced State | Reliability Verification |
-|---|---|---|---|---|---|
-| **The Snap** | "Snap" Action Button | `SnapScreen -> BiometricAuthHelper -> MainViewModel.executeSnap -> CoconutRepository.snapApp -> DPM.setPackagesSuspended` | `actualState = PROTECTED` | Package suspended via Android PM | **VERIFIED**: Requires fingerprint; fallback to confirmation dialog if no biometrics enrolled. Instant update to "Snapped" locked badge. |
-| **The Snap** | Category Filter Chips | `SnapScreen -> onCategoryChange -> MainViewModel.setSelectedCategory -> State update` | Filter category string | Filtered list displayed | **VERIFIED**: All 8 categories filter smoothly. |
-| **The Snap** | Search Bar | `SnapScreen -> OutlinedTextField -> MainViewModel.setSearchQuery` | Search query string | Filtered app list | **VERIFIED**: Real-time filtering with clear (X) action. |
-| **Content Shield** | Master Filter Switch | `ContentShieldScreen -> onToggleShield -> MainViewModel.toggleContentShield -> CoconutRepository.setContentShield -> DPM.setGlobalPrivateDnsModeSpecifiedHost` | `contentShieldEnabled = true/false` | `dpm.getGlobalPrivateDnsMode() == 3` | **VERIFIED**: Switch toggles immediately. Displays "Enforced" when DO, or "Pending DO" when not DO. |
-| **Content Shield** | Provider Radio Selection | `ContentShieldScreen -> onSelectProvider -> MainViewModel.selectDnsProvider -> CoconutRepository.setContentShield` | `dnsHostname = CleanBrowsing / Cloudflare` | Live Private DNS host matches selected hostname | **VERIFIED**: Switching between CleanBrowsing and Cloudflare updates instantly. |
-| **Content Shield** | "Test DNS Connectivity" | `ContentShieldScreen -> onTestDns -> MainViewModel.testDnsConnectivity -> DnsConnectivityTester.testProvider` | Diagnostic probe | Latency (ms) and IP reported | **VERIFIED**: Background TCP socket test on port 853; displays live latency. |
-| **Settings** | Prevent Coconut Uninstallation | `SettingsScreen -> onToggleSelfProtection -> MainViewModel.toggleSelfProtection -> CoconutRepository.setSelfProtection -> DPM.setUninstallBlocked` | `selfProtectionEnabled = true/false` | `dpm.isUninstallBlocked() == true` | **VERIFIED**: Saved locally; enforced via DPM when DO. |
-| **Settings** | Lock Private DNS | `SettingsScreen -> onToggleRestriction -> MainViewModel.setHardeningRestriction -> CoconutRepository.setAdvancedRestriction -> DPM.addUserRestriction(DISALLOW_CONFIG_PRIVATE_DNS)` | `disallowConfigPrivateDns = true/false` | `userManager.hasUserRestriction(DISALLOW_CONFIG_PRIVATE_DNS)` | **VERIFIED**: Prevents users from turning off DNS in Android Settings. |
-| **Settings** | Disallow Factory Reset | `SettingsScreen -> onToggleRestriction -> MainViewModel.setHardeningRestriction -> CoconutRepository.setAdvancedRestriction -> DPM.addUserRestriction(DISALLOW_FACTORY_RESET)` | `disallowFactoryReset = true/false` | `userManager.hasUserRestriction(DISALLOW_FACTORY_RESET)` | **VERIFIED**: Restricts device reset options in Settings. |
-| **Settings** | Disallow Safe Boot | `SettingsScreen -> onToggleRestriction -> MainViewModel.setHardeningRestriction -> CoconutRepository.setAdvancedRestriction -> DPM.addUserRestriction(DISALLOW_SAFE_BOOT)` | `disallowSafeBoot = true/false` | `userManager.hasUserRestriction(DISALLOW_SAFE_BOOT)` | **VERIFIED**: Blocks booting into Safe Mode. |
-| **Settings** | Disallow VPN Config | `SettingsScreen -> onToggleRestriction -> MainViewModel.setHardeningRestriction -> CoconutRepository.setAdvancedRestriction -> DPM.addUserRestriction(DISALLOW_CONFIG_VPN)` | `disallowConfigVpn = true/false` | `userManager.hasUserRestriction(DISALLOW_CONFIG_VPN)` | **VERIFIED**: Restricts VPN additions that bypass DNS. |
-| **Settings** | Disallow Debugging | `SettingsScreen -> onToggleRestriction -> MainViewModel.setHardeningRestriction -> CoconutRepository.setAdvancedRestriction -> DPM.addUserRestriction(DISALLOW_DEBUGGING_FEATURES)` | `disallowDebugging = true/false` | `userManager.hasUserRestriction(DISALLOW_DEBUGGING_FEATURES)` | **VERIFIED**: Blocks ADB access after setup. |
-| **Settings** | Disallow Unknown Sources | `SettingsScreen -> onToggleRestriction -> MainViewModel.setHardeningRestriction -> CoconutRepository.setAdvancedRestriction -> DPM.addUserRestriction(DISALLOW_INSTALL_UNKNOWN_SOURCES_GLOBALLY)` | `disallowUnknownSources = true/false` | `userManager.hasUserRestriction(DISALLOW_INSTALL_UNKNOWN_SOURCES_GLOBALLY)` | **VERIFIED**: Blocks APK sideloading outside app stores. |
-| **Settings** | Disallow App Control | `SettingsScreen -> onToggleRestriction -> MainViewModel.setHardeningRestriction -> CoconutRepository.setAdvancedRestriction -> DPM.addUserRestriction(DISALLOW_APPS_CONTROL)` | `disallowAppsControl = true/false` | `userManager.hasUserRestriction(DISALLOW_APPS_CONTROL)` | **VERIFIED**: Blocks clearing app storage or force stopping. |
-| **Setup Wizard** | Device Admin Activate | `SetupWizardDialog -> onRequestDeviceAdmin -> MainActivity.requestDeviceAdmin -> DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN` | Admin active | `dpm.isAdminActive() == true` | **VERIFIED**: Launches system admin activation; onResume refreshes UI. |
-| **Setup Wizard** | Protection Alerts (Notifications) | `SetupWizardDialog -> onRequestNotificationPermission -> MainActivity.requestNotificationPermission` | Permission granted | `POST_NOTIFICATIONS == GRANTED` | **VERIFIED**: Prompts runtime permission dialog on Android 13+. |
-| **Setup Wizard** | Copy ADB Command | `SetupWizardDialog -> ClipboardManager.setPrimaryClip` | Copied to clipboard | Toast confirmation | **VERIFIED**: Copies command to clipboard instantly. |
-| **Reconcile** | Sync & Verify Policies | `HomeScreen -> onReconcileNow -> MainViewModel.reconcileNow -> CoconutRepository.reconcile -> PolicyReconciliationManager` | All desired policies | Live DPM state synchronized | **VERIFIED**: Resuspends drifted apps, verifies DoT host, updates audit log. |
-
----
-
-## 6. Building & Release Signing
-
-### 6.1 Build Commands
-- **Build Debug APK**:
-  ```cmd
-  build_debug.bat
-  ```
-  Output: `app\build\outputs\apk\debug\app-debug.apk`
-
-- **Build Signed Release APK**:
-  ```cmd
-  build_release.bat
-  ```
-  Output: `app\build\outputs\apk\release\app-release.apk`
-
-### 6.2 Keystore Specifications
-- **Keystore**: `coconut-release.jks`
-- **Key Alias**: `coconut`
-- **Key Password**: `coconut_release_key`
-- **Signatures**: APK Signature Scheme v1, v2, v3 enabled
-
-### 6.3 In-Place Updateability
-Updates signed with `coconut-release.jks` install directly over existing versions (`adb install -r ...`). The `ACTION_MY_PACKAGE_REPLACED` broadcast ensures uninterrupted Device Owner authority and automatically re-verifies all active policies without dropping database records.
-
----
-
-## 7. Verification Test Suite
-
-Execute all automated unit and security tests:
-```cmd
-.\gradlew.bat test
+#### Production Release APK
+```bash
+.\gradlew.bat assembleRelease
 ```
+Output: `app\build\outputs\apk\release\app-release.apk`  
+Application ID: `com.coconut`
 
-### Verified Test Matrix:
-| Test ID | Test Category | Description | Status |
-|---|---|---|---|
-| **SAFE-01** | Data Safety | Verified `device_admin.xml` does NOT declare `<wipe-data />` | **PASS** |
-| **SAFE-02** | Data Safety | SafePackageHelper strictly protects emergency telephony & dialer packages | **PASS** |
-| **SAFE-03** | Data Safety | SafePackageHelper strictly protects System UI, Settings, and Launcher | **PASS** |
-| **SW-01** | Switch Reliability | Hardening restrictions mapping to Room configuration entity | **PASS** |
-| **SW-02** | Switch Reliability | Content Shield toggle preserves desired state across provider switches | **PASS** |
-| **SW-03** | Switch Reliability | Self-protection switch toggles cleanly between ON and OFF | **PASS** |
-| **SW-04** | State Separation | Desired state is preserved locally when Device Owner is inactive | **PASS** |
-| **SNAP-01** | The Snap | Permanent Snap Registry irreversibility (target uninstall preserves entry) | **PASS** |
-| **SNAP-02** | The Snap | App discovery via PackageManager excludes Coconut | **PASS** |
-| **SNAP-03** | The Snap | Package suspension via `dpm.setPackagesSuspended` | **PASS** |
-| **DNS-01** | Content Shield | CleanBrowsing Family DoT hostname validation | **PASS** |
-| **DNS-02** | Content Shield | Cloudflare Family DoT hostname validation | **PASS** |
-| **DNS-03** | Content Shield | Socket connectivity testing over DoT port 853 | **PASS** |
-| **RECON-01**| Reconciliation | Reconciliation resuspends drifted apps | **PASS** |
-| **RECON-02**| Reconciliation | Reconciliation handles uninstalled packages safely | **PASS** |
+---
+
+## 4. Release Signing Configuration
+
+Release signing credentials must not be committed to version control. The build system reads signing configuration through the following precedence:
+
+1. Environment variables:
+   - `COCONUT_KEYSTORE_PATH`
+   - `COCONUT_KEYSTORE_PASSWORD`
+   - `COCONUT_KEY_ALIAS`
+   - `COCONUT_KEY_PASSWORD`
+2. Gitignored `local.properties`:
+   ```properties
+   COCONUT_KEYSTORE_PATH=C:/path/to/keystore/coconut-release.jks
+   COCONUT_KEYSTORE_PASSWORD=your_keystore_password
+   COCONUT_KEY_ALIAS=your_key_alias
+   COCONUT_KEY_PASSWORD=your_key_password
+   ```
+3. Secure user directory default:
+   - `~/.coconut/keystore/coconut-release.jks`
+
+If signing credentials are not configured, the release build fails explicitly rather than silently falling back to a debug certificate.
+
+---
+
+## 5. Manual Installation & Setup
+
+1. **Install Release APK**:
+   Transfer `app-release.apk` to your phone and tap to install. When updating an existing installation, Android preserves all existing database records and Room v5 migrations apply automatically.
+
+2. **Enable Accessibility (For Snap)**:
+   - Open Coconut and go to the **Snap** tab.
+   - Tap the **Enable Accessibility** banner or navigate to `Android Settings > Accessibility > Installed Apps > Coconut`.
+   - Toggle Coconut to **ON** and confirm.
+
+3. **Enable VPN (For Local DNS)**:
+   - Go to the **DNS** tab in Coconut.
+   - Toggle **Local DNS** to **ON**.
+   - Android will present a system VPN connection request dialog. Tap **OK**.
+
+4. **Private DNS Compatibility (Important)**:
+   - Open `Android Settings > Connections / Network > More connection settings > Private DNS`.
+   - Set Private DNS to **Off** or **Automatic**.
+   - *Note*: If set to "Strict / Private DNS provider hostname", Android's system resolver connects directly over TLS (port 853) to the external provider, bypassing local port 53 VPN DNS.
+
+5. **Optional: Always-on VPN**:
+   - Open `Android Settings > Connections / Network > More connection settings > VPN`.
+   - Tap the gear icon next to **Coconut**.
+   - Enable **Always-on VPN**. (Do **NOT** enable *Block connections without VPN*).
+
+6. **Optional: Strict Mode**:
+   - Go to the **Settings** tab.
+   - Under **Strict Mode**, tap **Enable Strict Mode** and set a passcode.
+   - To unlock, request unlock and wait for the 15-minute countdown to elapse.
+
+---
+
+## 6. Blocklists & Custom Rules
+
+- **Bundled Snapshots**: Coconut includes offline snapshots in `assets/`:
+  - `threat_blocklist.txt`: 10,000 high-confidence domains from HaGeZi TIF Mini.
+  - `adult_blocklist.txt`: 10,000 adult domains from HaGeZi NSFW.
+  - `adblock_blocklist.txt`: 10,000 ad/tracker domains from HaGeZi Multi PRO Mini.
+- **Updates**: In the **DNS** tab, tap the refresh icon to atomically download and install the latest rules directly from HaGeZi's official GitHub repository over HTTPS.
+- **Custom Rules**:
+  - Add individual domains under the **Blocked** or **Allowed** tabs.
+  - Use **Bulk Add** to paste multiple domains (one per line or space-separated).
+  - Use **Export Rules** and **Import Rules** in Settings to backup or transfer domain lists via clipboard.
+
+---
+
+## 7. Performance & Resource Footprint
+
+- **Memory (RAM)**:
+  - Base process footprint: ~45MB to ~55MB on Android ART.
+  - Built-in blocklists in heap: ~1MB to ~1.2MB per 10,000 domains (~3.3MB total when all three feeds are active).
+  - DNS Cache: Bounded to 1,024 records (~150 KB).
+  - App Icon Cache: Bounded to 150 bitmaps (~3 MB).
+- **CPU & Battery**:
+  - Only port 53 DNS queries to `10.255.0.2` and `fd00::2` enter the TUN interface.
+  - Bulk internet traffic (media, streaming, downloads) routes directly over the physical network.
+  - Under typical usage, battery consumption is comparable to standard on-device DNS filters (approximately 1–3% daily battery share depending on query frequency).
+
+---
+
+## 8. Privacy & Security Model
+
+- **No Remote Servers**: Coconut runs no cloud backends, user tracking, or telemetry.
+- **Zero Query Logging**: Domain lookups are evaluated in memory and discarded. No query log or lookup history is saved to disk.
+- **No Destructive Operations**: Coconut never formats devices, wipes storage, or clears third-party application data.
+- **Graceful Uninstallation**: Coconut does not lock itself against device administrator removal. The user can disable Accessibility and VPN services at any time (subject to Strict Mode cooldown if configured) and uninstall the app cleanly.
+
+---
+
+## 9. Known Limitations
+
+- **Strict Private DNS**: When Android Private DNS is configured with a strict hostname (e.g. `dns.google`), Android's OS resolver sends encrypted queries directly over port 853 to the remote server, bypassing port 53 VPN DNS.
+- **Browser Encrypted DNS (DoH)**: If a web browser (e.g., Chrome or Firefox) is explicitly configured to use "Secure DNS" (DNS-over-HTTPS) with an external provider, the browser makes encrypted queries over HTTPS (port 443), bypassing the system port 53 resolver. To filter browser traffic, set browser Secure DNS to "Default" or "Off".
+- **Direct IP Traffic**: Direct socket connections made to raw IP addresses without a DNS hostname lookup bypass DNS filtering.
+- **Accessibility Service Interruption**: On some aggressive vendor battery-saver implementations (e.g. Samsung Sleeping Apps, Xiaomi MIUI/HyperOS), Android may stop background accessibility services. Ensure Coconut is excluded from battery optimization.

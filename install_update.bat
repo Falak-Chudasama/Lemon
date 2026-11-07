@@ -1,37 +1,22 @@
 @echo off
 echo ========================================================
-echo Coconut In-Place Application Update Script
+echo Coconut Release APK Installation Guidance
 echo ========================================================
 echo.
-echo This script performs a legitimate in-place update of Coconut.
-echo It preserves Device Owner status, Snap Registry, and configuration.
+echo Coconut 2.0 does not automatically install via ADB.
+echo The user installs the signed production APK manually to ensure device safety.
 echo.
 if exist "app\build\outputs\apk\release\app-release.apk" (
-    set APK_PATH=app\build\outputs\apk\release\app-release.apk
+    echo [FOUND] Production Release APK:
+    echo %CD%\app\build\outputs\apk\release\app-release.apk
+    echo.
+    echo Manual installation instructions:
+    echo 1. Transfer 'app-release.apk' to your Android phone (via USB, Quick Share, or storage).
+    echo 2. On your device, tap the APK in Files / Downloads to install in-place.
+    echo 3. Existing snapped apps and configuration in Room v5 will be safely retained.
+    echo 4. Grant Accessibility and VPN permissions inside Coconut when prompted.
 ) else (
-    if exist "app\build\outputs\apk\debug\app-debug.apk" (
-        set APK_PATH=app\build\outputs\apk\debug\app-debug.apk
-    ) else (
-        echo [ERROR] No APK found. Build the project first.
-        pause
-        exit /b 1
-    )
+    echo [ERROR] No release APK found. Run build_release.bat first.
 )
-
-echo Installing update from: %APK_PATH%
-adb install -r "%APK_PATH%"
-
-if %ERRORLEVEL% EQU 0 (
-    echo.
-    echo [SUCCESS] Coconut updated in place successfully!
-    echo Triggering policy reconciliation on device...
-    adb shell am broadcast -a android.intent.action.MY_PACKAGE_REPLACED -n com.coconut/.policy.PackageReconcileReceiver
-    echo.
-    echo Verifying Device Owner status:
-    adb shell dumpsys device_policy | findstr "admin=ComponentInfo{com.coconut"
-) else (
-    echo.
-    echo [ERROR] In-place update failed!
-)
+echo.
 pause
-

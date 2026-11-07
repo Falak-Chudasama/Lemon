@@ -5,16 +5,22 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 object SnapState {
-    const val PENDING_ENFORCEMENT = "PENDING_ENFORCEMENT"
-    const val SNAP_ACTIVE = "SNAP_ACTIVE"
-    const val PARTIALLY_ENFORCED = "PARTIALLY_ENFORCED"
-    const val SNAP_FAILED = "SNAP_FAILED"
-    const val AWAITING_INSTALLATION = "AWAITING_INSTALLATION"
-    const val RECOVERY_REQUIRED = "RECOVERY_REQUIRED"
+    const val SNAPPED = "SNAPPED"
+    const val NOT_INSTALLED = "NOT_INSTALLED"
+    const val REINSTALL_PENDING = "REINSTALL_PENDING"
+    const val BLOCKING = "BLOCKING"
+    const val ACCESSIBILITY_INACTIVE = "ACCESSIBILITY_INACTIVE"
+    const val ENFORCEMENT_ERROR = "ENFORCEMENT_ERROR"
 
-    // Legacy compatibility constants
-    const val PROTECTED = "SNAP_ACTIVE"
-    const val RECONCILIATION_REQUIRED = "PENDING_ENFORCEMENT"
+    // Backward compatibility aliases
+    const val SNAP_ACTIVE = "SNAPPED"
+    const val PENDING_ENFORCEMENT = "REINSTALL_PENDING"
+    const val PARTIALLY_ENFORCED = "SNAPPED"
+    const val SNAP_FAILED = "ENFORCEMENT_ERROR"
+    const val AWAITING_INSTALLATION = "NOT_INSTALLED"
+    const val RECOVERY_REQUIRED = "ENFORCEMENT_ERROR"
+    const val PROTECTED = "SNAPPED"
+    const val RECONCILIATION_REQUIRED = "REINSTALL_PENDING"
 }
 
 object InstallationState {

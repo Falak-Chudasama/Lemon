@@ -14,7 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.coconut.R
 
-// Host Grotesk is the EXCLUSIVE application typeface across all text elements
+// Host Grotesk: Display titles, major headings, and selected emphasis
 val HostGroteskFontFamily = FontFamily(
     Font(R.font.host_grotesk_regular, FontWeight.Normal),
     Font(R.font.host_grotesk_medium, FontWeight.Medium),
@@ -22,10 +22,18 @@ val HostGroteskFontFamily = FontFamily(
     Font(R.font.host_grotesk_bold, FontWeight.Bold)
 )
 
+// Urbanist: Normal body text, labels, inputs, buttons, and secondary information
+val UrbanistFontFamily = FontFamily(
+    Font(R.font.urbanist_regular, FontWeight.Normal),
+    Font(R.font.urbanist_medium, FontWeight.Medium),
+    Font(R.font.urbanist_semibold, FontWeight.SemiBold),
+    Font(R.font.urbanist_bold, FontWeight.Bold)
+)
+
 object CoconutColors {
     // Warm Coconut Brand Palette
-    val Espresso = Color(0xFF4A2800)
-    val HuskBronze = Color(0xFF7A4A22)
+    val Espresso = Color(0xFF382006)
+    val HuskBronze = Color(0xFF6B4019)
     val Caramel = Color(0xFFA26C3D)
     val CoconutCream = Color(0xFFF7EFE6)
     val CoconutFlesh = Color(0xFFFAF7F2)
@@ -48,34 +56,34 @@ val CoconutTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = HostGroteskFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 44.sp,
-        lineHeight = 52.sp,
+        fontSize = 40.sp,
+        lineHeight = 48.sp,
         letterSpacing = (-0.5).sp
     ),
     displayMedium = TextStyle(
         fontFamily = HostGroteskFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 34.sp,
-        lineHeight = 42.sp,
+        fontSize = 32.sp,
+        lineHeight = 38.sp,
         letterSpacing = (-0.25).sp
     ),
     displaySmall = TextStyle(
         fontFamily = HostGroteskFontFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 28.sp,
-        lineHeight = 34.sp
+        fontSize = 26.sp,
+        lineHeight = 32.sp
     ),
     headlineLarge = TextStyle(
         fontFamily = HostGroteskFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 26.sp,
-        lineHeight = 32.sp
+        fontSize = 24.sp,
+        lineHeight = 30.sp
     ),
     headlineMedium = TextStyle(
         fontFamily = HostGroteskFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 22.sp,
-        lineHeight = 28.sp
+        fontSize = 20.sp,
+        lineHeight = 26.sp
     ),
     headlineSmall = TextStyle(
         fontFamily = HostGroteskFontFamily,
@@ -86,8 +94,8 @@ val CoconutTypography = Typography(
     titleLarge = TextStyle(
         fontFamily = HostGroteskFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 19.sp,
-        lineHeight = 25.sp
+        fontSize = 18.sp,
+        lineHeight = 24.sp
     ),
     titleMedium = TextStyle(
         fontFamily = HostGroteskFontFamily,
@@ -96,95 +104,91 @@ val CoconutTypography = Typography(
         lineHeight = 22.sp
     ),
     titleSmall = TextStyle(
-        fontFamily = HostGroteskFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontFamily = UrbanistFontFamily,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 14.sp,
         lineHeight = 20.sp
     ),
     bodyLarge = TextStyle(
-        fontFamily = HostGroteskFontFamily,
+        fontFamily = UrbanistFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 24.sp
     ),
     bodyMedium = TextStyle(
-        fontFamily = HostGroteskFontFamily,
+        fontFamily = UrbanistFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
         lineHeight = 20.sp
     ),
     bodySmall = TextStyle(
-        fontFamily = HostGroteskFontFamily,
+        fontFamily = UrbanistFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
         lineHeight = 16.sp
     ),
     labelLarge = TextStyle(
-        fontFamily = HostGroteskFontFamily,
+        fontFamily = UrbanistFontFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 14.sp,
         lineHeight = 20.sp
     ),
     labelMedium = TextStyle(
-        fontFamily = HostGroteskFontFamily,
+        fontFamily = UrbanistFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 12.sp,
         lineHeight = 16.sp
     ),
     labelSmall = TextStyle(
-        fontFamily = HostGroteskFontFamily,
+        fontFamily = UrbanistFontFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 11.sp,
         lineHeight = 14.sp
     )
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = CoconutColors.Espresso,
-    onPrimary = Color.White,
-    primaryContainer = CoconutColors.CoconutCream,
-    onPrimaryContainer = Color(0xFF2C1600),
-    secondary = CoconutColors.HuskBronze,
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFFF0E5DC),
-    onSecondaryContainer = Color(0xFF381E0A),
-    tertiary = CoconutColors.Caramel,
-    onTertiary = Color.White,
-    error = CoconutColors.SnappedRed,
-    onError = Color.White,
-    errorContainer = Color(0xFFFFDAD6),
-    onErrorContainer = Color(0xFF410002),
-    background = Color(0xFFFAF7F2),
-    onBackground = Color(0xFF201A15),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF201A15),
-    surfaceVariant = Color(0xFFF3ECE4),
-    onSurfaceVariant = Color(0xFF534940),
-    outline = CoconutColors.SlateTint
+private val DarkColorScheme = darkColorScheme(
+    primary = Color(0xFFDDB892),
+    onPrimary = Color(0xFF382006),
+    primaryContainer = Color(0xFF53381B),
+    onPrimaryContainer = Color(0xFFF7EFE6),
+    secondary = Color(0xFFC7A88A),
+    onSecondary = Color(0xFF2E1D0C),
+    secondaryContainer = Color(0xFF45301E),
+    onSecondaryContainer = Color(0xFFE8D7C6),
+    tertiary = Color(0xFF81C784),
+    onTertiary = Color(0xFF00390E),
+    background = Color(0xFF16120E),
+    onBackground = Color(0xFFEBE0D7),
+    surface = Color(0xFF221B15),
+    onSurface = Color(0xFFEBE0D7),
+    surfaceVariant = Color(0xFF352B23),
+    onSurfaceVariant = Color(0xFFD3C3B6),
+    outline = Color(0xFF9C8D81),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005)
 )
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFFE4C3A3),
-    onPrimary = Color(0xFF3A2007),
-    primaryContainer = Color(0xFF44280E),
-    onPrimaryContainer = Color(0xFFFFE0C4),
-    secondary = Color(0xFFCCAC91),
-    onSecondary = Color(0xFF2E1C0A),
-    secondaryContainer = Color(0xFF38271A),
-    onSecondaryContainer = Color(0xFFEBD7C7),
-    tertiary = Color(0xFFE8BD93),
-    onTertiary = Color(0xFF40260B),
-    error = Color(0xFFFFB4AB),
-    onError = Color(0xFF690005),
-    errorContainer = Color(0xFF93000A),
-    onErrorContainer = Color(0xFFFFDAD6),
-    background = Color(0xFF14110E),
-    onBackground = Color(0xFFEFE7E0),
-    surface = Color(0xFF1E1814),
-    onSurface = Color(0xFFEFE7E0),
-    surfaceVariant = Color(0xFF2C241E),
-    onSurfaceVariant = Color(0xFFC7BCB2),
-    outline = Color(0xFF877C72)
+private val LightColorScheme = lightColorScheme(
+    primary = Color(0xFF7A4A22),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFF7EFE6),
+    onPrimaryContainer = Color(0xFF2E1700),
+    secondary = Color(0xFF6E5948),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFF4E9DF),
+    onSecondaryContainer = Color(0xFF27170A),
+    tertiary = Color(0xFF2E7D32),
+    onTertiary = Color(0xFFFFFFFF),
+    background = Color(0xFFFAF7F2),
+    onBackground = Color(0xFF201B16),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF201B16),
+    surfaceVariant = Color(0xFFEFE8E1),
+    onSurfaceVariant = Color(0xFF4F453D),
+    outline = Color(0xFF81756C),
+    error = Color(0xFFBA1A1A),
+    onError = Color(0xFFFFFFFF)
 )
 
 @Composable

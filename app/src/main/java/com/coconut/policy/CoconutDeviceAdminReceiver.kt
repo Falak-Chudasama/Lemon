@@ -24,8 +24,6 @@ class CoconutDeviceAdminReceiver : DeviceAdminReceiver() {
                     severity = "INFO"
                 )
             )
-            // Trigger reconciliation to evaluate policies
-            PolicyReconciliationManager(appContext).reconcile("ADMIN_ENABLED")
         }
     }
 
@@ -33,20 +31,15 @@ class CoconutDeviceAdminReceiver : DeviceAdminReceiver() {
         super.onProfileProvisioningComplete(context, intent)
         val appContext = context.applicationContext
         CoroutineScope(Dispatchers.IO).launch {
-            // Note: Per Section 2.8, do NOT automatically lock Coconut itself against uninstallation.
-            // Self-protection must default to false and never trap the user.
             val db = AppDatabase.get(appContext)
             db.securityAuditDao().insert(
                 SecurityAuditEventEntity(
                     eventType = "PROVISIONING_COMPLETE",
-                    target = "Coconut DPC",
-                    details = "Fully managed device provisioning successfully completed. Device Owner active.",
+                    target = "Coconut",
+                    details = "Provisioning callback received.",
                     severity = "INFO"
                 )
             )
-
-            // Run initial reconciliation
-            PolicyReconciliationManager(appContext).reconcile("PROVISIONING_COMPLETE")
         }
     }
 
