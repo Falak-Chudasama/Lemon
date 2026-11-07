@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,6 +41,8 @@ import com.coconut.dns.DnsProviders
 import com.coconut.dns.DnsTestResult
 import com.coconut.ui.CoconutColors
 import com.coconut.ui.MainUiState
+import com.coconut.ui.components.GlassCard
+import com.coconut.ui.components.GlassStatusBadge
 
 @Composable
 fun ContentShieldScreen(
@@ -52,27 +55,21 @@ fun ContentShieldScreen(
     val shieldConfig = state.protectionConfig
     val isEnabled = shieldConfig?.contentShieldEnabled == true
     val currentHostname = shieldConfig?.dnsHostname ?: "family-filter-dns.cleanbrowsing.org"
+    val isEnforced = state.isDeviceOwner && state.privateDnsStatus?.isEnforced == true
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
             .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // --- 1. HERO TOGGLE CARD ---
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (isEnabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        GlassCard(
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(22.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -107,33 +104,22 @@ fun ContentShieldScreen(
                             )
                             if (isEnabled) {
                                 Spacer(modifier = Modifier.width(8.dp))
-                                val isEnforced = state.isDeviceOwner && state.privateDnsStatus?.isEnforced == true
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (isEnforced) CoconutColors.ProtectedGreen.copy(alpha = 0.15f) else CoconutColors.AwaitingAmber.copy(alpha = 0.15f)
-                                ) {
-                                    Text(
-                                        text = if (isEnforced) "Enforced" else "Pending DO",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isEnforced) CoconutColors.ProtectedGreen else CoconutColors.AwaitingAmber,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
+                                val badgeColor = if (isEnforced) CoconutColors.ProtectedGreen else CoconutColors.AwaitingAmber
+                                val badgeText = if (isEnforced) "Enforced" else "Pending DO"
+                                GlassStatusBadge(text = badgeText, statusColor = badgeColor, showDot = true)
                             }
                         }
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = if (isEnabled) {
-                                if (state.isDeviceOwner && state.privateDnsStatus?.isEnforced == true) {
-                                    "Adult filtering active & locked"
+                                if (isEnforced) {
+                                    "Private DNS locked to ${shieldConfig?.dnsProviderName ?: "Family Filter"}"
                                 } else {
-                                    "Saved locally — Pending Device Owner to lock"
+                                    "Pending Device Owner to enforce native DNS lock"
                                 }
-                            } else "Filtering disabled",
+                            } else "Filtering disabled • Android automatic DNS active",
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (isEnabled) CoconutColors.ProtectedGreen else MaterialTheme.colorScheme.outline,
-                            fontWeight = if (isEnabled) FontWeight.SemiBold else FontWeight.Normal
+                            color = if (isEnabled && isEnforced) CoconutColors.ProtectedGreen else MaterialTheme.colorScheme.outline
                         )
                     }
                 }
@@ -158,11 +144,11 @@ fun ContentShieldScreen(
         )
 
         DnsProviders.ALL.forEach { provider ->
-            val isSelected = provider.hostname == currentHostname
+            val isSelected = provider.hostname.equals(currentHostname, ignoreCase = true)
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isSelected) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
+                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
                 modifier = Modifier
@@ -188,17 +174,25 @@ fun ContentShieldScreen(
                     Spacer(modifier = Modifier.width(12.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = provider.displayName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = provider.displayName,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = provider.description,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.outline
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Hostname: ${provider.hostname}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.8f)
                         )
                     }
                 }
@@ -207,7 +201,7 @@ fun ContentShieldScreen(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // --- 3. TEST DNS BUTTON & STATUS ---
+        // --- 3. DNS-OVER-TLS TEST & VERIFICATION ---
         OutlinedButton(
             onClick = onTestDns,
             shape = RoundedCornerShape(16.dp),
@@ -219,7 +213,7 @@ fun ContentShieldScreen(
             if (state.isTestingDns) {
                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Testing Resolver...")
+                Text("Running DoT Handshake & Resolution...")
             } else {
                 Icon(
                     imageVector = Icons.Default.NetworkCheck,
@@ -227,38 +221,87 @@ fun ContentShieldScreen(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Test DNS Connectivity", style = MaterialTheme.typography.titleSmall)
+                Text("Test DNS-over-TLS Diagnostics", style = MaterialTheme.typography.titleSmall)
             }
         }
 
+        // Test results container
         state.dnsTestResult?.let { result ->
-            val isSuccess = result is DnsTestResult.Success
-            val message = when (result) {
-                is DnsTestResult.Success -> "Connected! Latency: ${result.latencyMs}ms (Resolved: ${result.resolvedIp})"
-                is DnsTestResult.Failure -> "${result.error} ${result.recoveryAdvice}"
-            }
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = if (isSuccess) CoconutColors.ProtectedGreen.copy(alpha = 0.12f) else MaterialTheme.colorScheme.errorContainer,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = if (isSuccess) CoconutColors.ProtectedGreen else MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = message,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = if (isSuccess) CoconutColors.ProtectedGreen else MaterialTheme.colorScheme.onErrorContainer
-                    )
+            when (result) {
+                is DnsTestResult.Success -> {
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = CoconutColors.ProtectedGreen.copy(alpha = 0.12f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = CoconutColors.ProtectedGreen,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "DoT Handshake & Resolution Verified",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = CoconutColors.ProtectedGreen
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Connected to ${result.providerHostname} (${result.resolvedIp}) over TLS on port 853 in ${result.latencyMs}ms.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = result.filterTestSummary,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium,
+                                color = CoconutColors.ProtectedGreen
+                            )
+                        }
+                    }
+                }
+                is DnsTestResult.Failure -> {
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "DNS Diagnostics Failed",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = result.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Advice: ${result.recoveryAdvice}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.9f)
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DevicePolicyStateEntity::class,
         SecurityAuditEventEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -29,7 +29,6 @@ abstract class AppDatabase : RoomDatabase() {
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Migrate snapped_apps schema
                 db.execSQL("ALTER TABLE snapped_apps ADD COLUMN firstSnappedAt INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE snapped_apps ADD COLUMN lastAppliedAt INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE snapped_apps ADD COLUMN desiredState TEXT NOT NULL DEFAULT 'SUSPENDED'")
@@ -39,10 +38,8 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE snapped_apps ADD COLUMN createdAt INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE snapped_apps ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
 
-                // Update timestamps from existing snappedAt if present
                 db.execSQL("UPDATE snapped_apps SET firstSnappedAt = snappedAt, lastAppliedAt = snappedAt, createdAt = snappedAt, updatedAt = snappedAt WHERE firstSnappedAt = 0")
 
-                // Create protection_config
                 db.execSQL("""
                     CREATE TABLE IF NOT EXISTS protection_config (
                         id INTEGER PRIMARY KEY NOT NULL,
@@ -60,7 +57,6 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                 """.trimIndent())
 
-                // Create device_policy_state
                 db.execSQL("""
                     CREATE TABLE IF NOT EXISTS device_policy_state (
                         id INTEGER PRIMARY KEY NOT NULL,
@@ -76,7 +72,6 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                 """.trimIndent())
 
-                // Create security_audit_events
                 db.execSQL("""
                     CREATE TABLE IF NOT EXISTS security_audit_events (
                         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -96,6 +91,28 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Non-destructive migration to Version 4:
+                // 1. Add uninstallBlocked column to snapped_apps
+                db.execSQL("ALTER TABLE snapped_apps ADD COLUMN uninstallBlocked INTEGER NOT NULL DEFAULT 0")
+
+                // 2. Add lastVerifiedAt column to snapped_apps
+                db.execSQL("ALTER TABLE snapped_apps ADD COLUMN lastVerifiedAt INTEGER NOT NULL DEFAULT 0")
+
+                // 3. Migrate legacy actualState strings to typed status values
+                db.execSQL("UPDATE snapped_apps SET actualState = 'SNAP_ACTIVE' WHERE actualState = 'SNAPPED — PROTECTED'")
+                db.execSQL("UPDATE snapped_apps SET actualState = 'AWAITING_INSTALLATION' WHERE actualState = 'SNAPPED — AWAITING INSTALLATION'")
+
+                // 4. Correct flawed defaults in existing records:
+                // Content Shield owns Private DNS restriction: if Content Shield is OFF, clear disallowConfigPrivateDns
+                db.execSQL("UPDATE protection_config SET disallowConfigPrivateDns = 0 WHERE contentShieldEnabled = 0")
+
+                // Self-protection must not be automatically forced: default to 0 (false)
+                db.execSQL("UPDATE protection_config SET selfProtectionEnabled = 0")
+            }
+        }
+
         fun get(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -103,7 +120,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "coconut_snap.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { INSTANCE = it }
             }

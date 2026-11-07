@@ -10,6 +10,7 @@ import com.coconut.data.CoconutRepository
 import com.coconut.data.DevicePolicyStateEntity
 import com.coconut.data.ProtectionConfigurationEntity
 import com.coconut.data.SecurityAuditEventEntity
+import com.coconut.data.SnapState
 import com.coconut.data.SnappedAppEntity
 import com.coconut.dns.DnsConnectivityTester
 import com.coconut.dns.DnsTestResult
@@ -46,7 +47,9 @@ data class MainUiState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
     val activeSnapTarget: InstalledApp? = null,
-    val activeBlockedTarget: InstalledApp? = null
+    val activeBlockedTarget: InstalledApp? = null,
+    val showRecoveryDialog: Boolean = false,
+    val recoveryTargetApp: SnappedAppEntity? = null
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -132,7 +135,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 it.copy(
                     isDeviceOwner = isDO,
                     isDeviceAdmin = isAdmin,
-                    showSetupDialog = !isDO,
+                    showSetupDialog = !isDO && it.showSetupDialog,
                     isSelfProtectionActive = selfProtection,
                     privateDnsStatus = dnsStatus
                 )
@@ -156,10 +159,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     isSelfProtectionActive = selfProtection,
                     privateDnsStatus = dnsStatus,
                     successMessage = if (summary.success) {
-                        "Reconciliation complete: ${summary.totalSnapped} snapped apps checked. Policies verified."
+                        "Verification complete: ${summary.totalSnapped} snapped apps checked. Policies verified."
                     } else null,
                     errorMessage = if (!summary.success) {
-                        summary.errors.firstOrNull() ?: "Reconciliation found policy issues."
+                        summary.errors.firstOrNull() ?: "Policy synchronization detected issues."
                     } else null
                 )
             }
@@ -199,7 +202,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         isProtected = isProtected,
                         protectionReason = protectionReason,
                         isSuspended = isSuspended,
-                        icon = null // Loaded lazily and cached via AppIconCache
+                        icon = null
                     )
                 }
 
@@ -248,25 +251,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _state.update { it.copy(isLoading = true, activeSnapTarget = null, errorMessage = null) }
             val result = repo.snapApp(app.packageName, app.applicationName, app.category)
             when (result) {
-                is PolicyResult.Success -> {
-                    val msg = if (_state.value.isDeviceOwner) {
-                        "Application ${app.applicationName} has been permanently Snapped."
-                    } else {
-                        "Application ${app.applicationName} Snapped in registry! Device Owner required for OS-level suspension."
-                    }
+                is PolicyResult.AppliedAndVerified -> {
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            successMessage = msg
+                            successMessage = "Application ${app.applicationName} permanently Snapped and verified."
                         )
                     }
                     refresh()
                 }
-                is PolicyResult.Failure -> {
+                is PolicyResult.PartiallyApplied -> {
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = result.reason
+                            successMessage = "Application ${app.applicationName} suspended (uninstall lock partial)."
+                        )
+                    }
+                    refresh()
+                }
+                is PolicyResult.AwaitingDeviceOwner -> {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = result.message
+                        )
+                    }
+                    refresh()
+                }
+                else -> {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = result.errorMessage ?: "Failed to snap application."
                         )
                     }
                 }
@@ -282,32 +298,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _state.update { it.copy(activeBlockedTarget = null) }
     }
 
-    fun toggleSelfProtection(enabled: Boolean) {
-        viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
-            val result = repo.setSelfProtection(enabled)
-            when (result) {
-                is PolicyResult.Success -> {
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            isSelfProtectionActive = enabled,
-                            successMessage = "Self-protection ${if (enabled) "enabled" else "disabled"}."
-                        )
-                    }
-                }
-                is PolicyResult.Failure -> {
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = result.reason
-                        )
-                    }
-                }
-            }
-        }
-    }
-
     // --- CONTENT SHIELD ACTIONS ---
 
     fun toggleContentShield(enabled: Boolean) {
@@ -315,26 +305,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _state.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
             val result = repo.setContentShield(enabled)
             when (result) {
-                is PolicyResult.Success -> {
+                is PolicyResult.AppliedAndVerified -> {
                     val dnsStatus = repo.policyManager.getPrivateDnsStatus()
-                    val msg = if (_state.value.isDeviceOwner) {
-                        "Content Shield ${if (enabled) "enabled" else "disabled"} successfully."
-                    } else {
-                        "Content Shield preference saved. Activate Device Owner to lock DNS."
-                    }
                     _state.update {
                         it.copy(
                             isLoading = false,
                             privateDnsStatus = dnsStatus,
-                            successMessage = msg
+                            successMessage = if (enabled) "Content Shield enabled and verified." else "Content Shield disabled. Default Android DNS restored."
                         )
                     }
                 }
-                is PolicyResult.Failure -> {
+                is PolicyResult.AwaitingDeviceOwner -> {
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = result.reason
+                            errorMessage = result.message
+                        )
+                    }
+                }
+                else -> {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = result.errorMessage ?: "Content Shield operation failed."
                         )
                     }
                 }
@@ -348,7 +341,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val currentlyEnabled = _state.value.protectionConfig?.contentShieldEnabled ?: false
             val result = repo.setContentShield(enabled = currentlyEnabled, providerHostname = hostname)
             when (result) {
-                is PolicyResult.Success -> {
+                is PolicyResult.AppliedAndVerified -> {
                     val dnsStatus = repo.policyManager.getPrivateDnsStatus()
                     _state.update {
                         it.copy(
@@ -358,11 +351,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                 }
-                is PolicyResult.Failure -> {
+                else -> {
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = result.reason
+                            errorMessage = result.errorMessage ?: "Failed to switch DNS provider."
                         )
                     }
                 }
@@ -379,28 +372,69 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // --- ADVANCED HARDENING ---
+    // --- OPTIONAL HARDENING RESTRICTIONS ---
 
     fun setHardeningRestriction(restriction: String, enabled: Boolean) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
             val result = repo.setAdvancedRestriction(restriction, enabled)
             when (result) {
-                is PolicyResult.Success -> {
+                is PolicyResult.AppliedAndVerified -> {
                     val dnsStatus = repo.policyManager.getPrivateDnsStatus()
                     _state.update {
                         it.copy(
                             isLoading = false,
                             privateDnsStatus = dnsStatus,
-                            successMessage = "Device policy updated."
+                            successMessage = "Device policy updated successfully."
                         )
                     }
                 }
-                is PolicyResult.Failure -> {
+                else -> {
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = result.reason
+                            errorMessage = result.errorMessage ?: "Failed to update device policy."
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // --- EXCEPTIONAL EMERGENCY RECOVERY ---
+
+    fun openEmergencyRecoveryDialog() {
+        val snapped = _state.value.snappedApps.firstOrNull()
+        _state.update { it.copy(showRecoveryDialog = true, recoveryTargetApp = snapped) }
+    }
+
+    fun selectRecoveryApp(app: SnappedAppEntity) {
+        _state.update { it.copy(recoveryTargetApp = app) }
+    }
+
+    fun dismissEmergencyRecoveryDialog() {
+        _state.update { it.copy(showRecoveryDialog = false, recoveryTargetApp = null) }
+    }
+
+    fun executeEmergencyRecovery(packageName: String) {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, showRecoveryDialog = false, errorMessage = null) }
+            val result = repo.emergencyRecoveryUnsnap(packageName)
+            when (result) {
+                is PolicyResult.AppliedAndVerified -> {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            successMessage = "Emergency recovery completed. Package $packageName restored."
+                        )
+                    }
+                    refresh()
+                }
+                else -> {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = result.errorMessage ?: "Emergency recovery failed."
                         )
                     }
                 }

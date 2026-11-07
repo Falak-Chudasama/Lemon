@@ -1,5 +1,10 @@
 package com.coconut.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import com.coconut.R
 import com.coconut.security.BiometricAuthHelper
+import com.coconut.ui.components.EmergencyRecoveryDialog
 import com.coconut.ui.components.SetupWizardDialog
 import com.coconut.ui.components.SnapConfirmationDialog
 import com.coconut.ui.components.SnappedBlockedDialog
@@ -147,63 +153,75 @@ fun CoconutApp(
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // Subtle error banner
-                state.errorMessage?.let { error ->
-                    Surface(
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 6.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                AnimatedVisibility(
+                    visible = state.errorMessage != null,
+                    enter = slideInVertically() + fadeIn(),
+                    exit = slideOutVertically() + fadeOut()
+                ) {
+                    state.errorMessage?.let { error ->
+                        Surface(
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 6.dp)
                         ) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = error,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.weight(1f)
-                            )
-                            IconButton(onClick = viewModel::clearMessages, modifier = Modifier.size(20.dp)) {
-                                Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(14.dp))
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(onClick = viewModel::clearMessages, modifier = Modifier.size(20.dp)) {
+                                    Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(14.dp))
+                                }
                             }
                         }
                     }
                 }
 
                 // Subtle success banner
-                state.successMessage?.let { success ->
-                    Surface(
-                        color = CoconutColors.ProtectedGreen.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 6.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                AnimatedVisibility(
+                    visible = state.successMessage != null,
+                    enter = slideInVertically() + fadeIn(),
+                    exit = slideOutVertically() + fadeOut()
+                ) {
+                    state.successMessage?.let { success ->
+                        Surface(
+                            color = CoconutColors.ProtectedGreen.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 6.dp)
                         ) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = CoconutColors.ProtectedGreen, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = success,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Medium,
-                                color = CoconutColors.ProtectedGreen,
-                                modifier = Modifier.weight(1f)
-                            )
-                            IconButton(onClick = viewModel::clearMessages, modifier = Modifier.size(20.dp)) {
-                                Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(14.dp))
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = CoconutColors.ProtectedGreen, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = success,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = CoconutColors.ProtectedGreen,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(onClick = viewModel::clearMessages, modifier = Modifier.size(20.dp)) {
+                                    Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(14.dp))
+                                }
                             }
                         }
                     }
                 }
 
-                // Tab Content
+                // Screen Tabs
                 when (state.selectedTab) {
                     NavigationTab.HOME -> HomeScreen(
                         state = state,
@@ -221,7 +239,7 @@ fun CoconutApp(
                                 BiometricAuthHelper.authenticate(
                                     activity = activity,
                                     title = "Snap ${app.applicationName}",
-                                    subtitle = "Confirm fingerprint to permanently snap",
+                                    subtitle = "Confirm fingerprint or PIN to permanently snap",
                                     onSuccess = { viewModel.executeSnap(app) },
                                     onError = { errorMsg ->
                                         viewModel.showErrorMessage("Snap authentication failed: $errorMsg")
@@ -243,13 +261,13 @@ fun CoconutApp(
                     )
                     NavigationTab.SETTINGS -> SettingsScreen(
                         state = state,
-                        onToggleSelfProtection = viewModel::toggleSelfProtection,
-                        onToggleRestriction = viewModel::setHardeningRestriction
+                        onToggleRestriction = viewModel::setHardeningRestriction,
+                        onOpenEmergencyRecovery = viewModel::openEmergencyRecoveryDialog
                     )
                 }
             }
 
-            // Full-Fledged Setup & Permissions Wizard Dialog
+            // Setup & Permissions Wizard Dialog
             if (state.showSetupDialog) {
                 SetupWizardDialog(
                     state = state,
@@ -260,10 +278,11 @@ fun CoconutApp(
                 )
             }
 
-            // Fallback Confirmation Dialog for The Snap (when no biometric hardware/enrolled)
+            // Confirmation Dialog for The Snap
             state.activeSnapTarget?.let { app ->
                 SnapConfirmationDialog(
                     appName = app.applicationName,
+                    packageName = app.packageName,
                     onConfirm = { viewModel.executeSnap(app) },
                     onDismiss = viewModel::dismissSnapRequest
                 )
@@ -273,8 +292,37 @@ fun CoconutApp(
             state.activeBlockedTarget?.let { app ->
                 SnappedBlockedDialog(
                     appName = app.applicationName,
+                    packageName = app.packageName,
                     onDismiss = viewModel::dismissBlockedDialog
                 )
+            }
+
+            // Exceptional Emergency Recovery Dialog
+            if (state.showRecoveryDialog) {
+                val target = state.recoveryTargetApp
+                if (target != null) {
+                    EmergencyRecoveryDialog(
+                        appName = target.applicationName,
+                        packageName = target.packageName,
+                        onConfirmRecovery = {
+                            if (activity != null && BiometricAuthHelper.hasBiometricOrCredential(activity)) {
+                                BiometricAuthHelper.authenticate(
+                                    activity = activity,
+                                    title = "Authorize Recovery for ${target.applicationName}",
+                                    subtitle = "Emergency unsuspension authorization",
+                                    onSuccess = { viewModel.executeEmergencyRecovery(target.packageName) },
+                                    onError = { viewModel.showErrorMessage("Authorization failed: $it") }
+                                )
+                            } else {
+                                viewModel.executeEmergencyRecovery(target.packageName)
+                            }
+                        },
+                        onDismiss = viewModel::dismissEmergencyRecoveryDialog
+                    )
+                } else {
+                    viewModel.showErrorMessage("No snapped applications to recover.")
+                    viewModel.dismissEmergencyRecoveryDialog()
+                }
             }
         }
     }

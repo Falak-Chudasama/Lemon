@@ -42,7 +42,7 @@ class BlockedAppActivity : ComponentActivity() {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.6f))
+                        .background(Color.Black.copy(alpha = 0.65f))
                         .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -63,7 +63,7 @@ class BlockedAppActivity : ComponentActivity() {
                             Image(
                                 painter = painterResource(id = R.drawable.ic_coconut_logo),
                                 contentDescription = "Coconut Logo",
-                                modifier = Modifier.size(72.dp)
+                                modifier = Modifier.size(68.dp)
                             )
 
                             Spacer(modifier = Modifier.height(20.dp))
@@ -96,7 +96,7 @@ class BlockedAppActivity : ComponentActivity() {
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(52.dp)
+                                    .height(50.dp)
                             ) {
                                 Text(
                                     text = "Head Back",
@@ -111,4 +111,3 @@ class BlockedAppActivity : ComponentActivity() {
         }
     }
 }
-

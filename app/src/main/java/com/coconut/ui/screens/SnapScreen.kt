@@ -1,5 +1,8 @@
 package com.coconut.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -55,10 +58,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.coconut.data.SnapState
 import com.coconut.ui.AppIconCache
 import com.coconut.ui.CoconutColors
 import com.coconut.ui.InstalledApp
 import com.coconut.ui.MainUiState
+import com.coconut.ui.components.GlassStatusBadge
 
 private val CATEGORIES = listOf(
     "All", "Social", "Entertainment", "Games", "Productivity", "Communication", "Utilities", "Other"
@@ -82,7 +87,7 @@ fun SnapScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 10.dp)
+                .padding(horizontal = 20.dp, vertical = 8.dp)
         ) {
             OutlinedTextField(
                 value = state.searchQuery,
@@ -90,7 +95,7 @@ fun SnapScreen(
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = {
                     Text(
-                        "Search apps to snap...",
+                        "Search apps to permanently snap...",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.outline
                     )
@@ -126,7 +131,7 @@ fun SnapScreen(
             )
         }
 
-        // --- 2. SEGMENTED TABS: APPS vs SNAPPED ---
+        // --- 2. SEGMENTED TABS: APPS vs SNAPPED REGISTRY ---
         TabRow(
             selectedTabIndex = if (state.showRegistryTab) 1 else 0,
             containerColor = Color.Transparent,
@@ -156,7 +161,7 @@ fun SnapScreen(
                 onClick = { onTabChange(true) },
                 text = {
                     Text(
-                        text = "Snapped (${state.snappedApps.size})",
+                        text = "Permanent Registry (${state.snappedApps.size})",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = if (state.showRegistryTab) FontWeight.Bold else FontWeight.Medium
                     )
@@ -218,7 +223,7 @@ fun SnapScreen(
             if (filteredApps.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = if (state.isLoading) "Loading applications..." else "No applications match your search.",
+                        text = if (state.isLoading) "Loading installed applications..." else "No applications match your search.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.outline
                     )
@@ -245,6 +250,7 @@ fun SnapScreen(
                 }
             }
         } else {
+            // Snapped permanent registry view
             val snappedList = remember(state.installedApps, state.snappedApps, state.searchQuery, state.selectedCategory) {
                 val appMap = state.installedApps.associateBy { it.packageName }
                 var list = state.snappedApps.map { record ->
@@ -255,7 +261,7 @@ fun SnapScreen(
                         isSystemApp = false,
                         isProtected = false,
                         protectionReason = null,
-                        isSuspended = true,
+                        isSuspended = record.actualState == SnapState.SNAP_ACTIVE,
                         icon = null
                     )
                 }
@@ -290,7 +296,7 @@ fun SnapScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Select apps from the Apps tab to permanently snap.",
+                            text = "Select apps from the Apps tab to permanently lock them.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.outline
                         )
@@ -365,6 +371,7 @@ private fun AppRowCard(
             Spacer(modifier = Modifier.width(8.dp))
 
             if (isSnapped) {
+                // Section 5.1: Snapped apps display clear permanent status badge. NO Unsnap button/toggle!
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = CoconutColors.SnappedRed.copy(alpha = 0.12f),

@@ -3,6 +3,7 @@ package com.coconut.policy
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.coconut.core.SafePackageHelper
 import com.coconut.data.AppDatabase
 import com.coconut.data.InstallationState
 import com.coconut.data.SecurityAuditEventEntity
@@ -23,6 +24,7 @@ class PackageReconcileReceiver : BroadcastReceiver() {
                 val auditDao = db.securityAuditDao()
                 val reconciliationManager = PolicyReconciliationManager(appContext)
                 val policyManager = CoconutPolicyManager(appContext)
+                val safePackageHelper = SafePackageHelper(appContext)
 
                 when (intent.action) {
                     Intent.ACTION_BOOT_COMPLETED -> {
@@ -46,6 +48,8 @@ class PackageReconcileReceiver : BroadcastReceiver() {
                                 severity = "INFO"
                             )
                         )
+                        // Make sure we release legacy self-protection on update
+                        policyManager.releaseSelfProtectionIfActive()
                         reconciliationManager.reconcile("COCONUT_UPDATE")
                     }
 
@@ -59,51 +63,83 @@ class PackageReconcileReceiver : BroadcastReceiver() {
                         // Check if this newly added/replaced package is registered in Snap Registry
                         val snappedApp = snapDao.getByPackageName(packageName)
                         if (snappedApp != null) {
-                            // Target application was reinstalled! Automatically apply suspension!
-                            val suspendResult = policyManager.suspendPackage(packageName)
+                            // Section 5.6: Target application reinstalled or updated!
+                            // 1. Identify target
+                            // 2. Verify permissible target
+                            if (safePackageHelper.isProtectedPackage(packageName)) {
+                                auditDao.insert(
+                                    SecurityAuditEventEntity(
+                                        eventType = "RESUSPEND_REJECTED",
+                                        target = packageName,
+                                        details = "Package $packageName is critical to system operation. Skipping resuspension.",
+                                        severity = "WARNING"
+                                    )
+                                )
+                                return@launch
+                            }
+
+                            // 3 & 4. Reapply suspension & uninstall protection
+                            val result = policyManager.suspendAndProtectPackage(packageName)
                             val now = System.currentTimeMillis()
 
-                            if (suspendResult is PolicyResult.Success) {
-                                snapDao.update(
-                                    snappedApp.copy(
-                                        actualState = SnapState.PROTECTED,
-                                        installationState = InstallationState.INSTALLED,
-                                        lastAppliedAt = now,
-                                        lastError = null,
-                                        updatedAt = now
+                            when (result) {
+                                is PolicyResult.AppliedAndVerified -> {
+                                    snapDao.update(
+                                        snappedApp.copy(
+                                            actualState = SnapState.SNAP_ACTIVE,
+                                            uninstallBlocked = true,
+                                            installationState = InstallationState.INSTALLED,
+                                            lastAppliedAt = now,
+                                            lastVerifiedAt = now,
+                                            lastError = null,
+                                            updatedAt = now
+                                        )
                                     )
-                                )
-                                auditDao.insert(
-                                    SecurityAuditEventEntity(
-                                        eventType = "AUTO_RESUSPEND_ON_INSTALL",
-                                        target = packageName,
-                                        details = "Package $packageName was reinstalled and automatically suspended via Snap Registry.",
-                                        severity = "INFO"
+                                    auditDao.insert(
+                                        SecurityAuditEventEntity(
+                                            eventType = "AUTO_RESUSPEND_ON_INSTALL",
+                                            target = packageName,
+                                            details = "Package $packageName reinstalled/updated and automatically restored to permanent Snap.",
+                                            severity = "INFO"
+                                        )
                                     )
-                                )
-                            } else if (suspendResult is PolicyResult.Failure) {
-                                snapDao.update(
-                                    snappedApp.copy(
-                                        actualState = SnapState.SNAP_FAILED,
-                                        installationState = InstallationState.INSTALLED,
-                                        lastError = suspendResult.reason,
-                                        updatedAt = now
+                                }
+                                is PolicyResult.PartiallyApplied -> {
+                                    snapDao.update(
+                                        snappedApp.copy(
+                                            actualState = SnapState.PARTIALLY_ENFORCED,
+                                            uninstallBlocked = false,
+                                            installationState = InstallationState.INSTALLED,
+                                            lastAppliedAt = now,
+                                            lastVerifiedAt = now,
+                                            lastError = result.details,
+                                            updatedAt = now
+                                        )
                                     )
-                                )
-                                auditDao.insert(
-                                    SecurityAuditEventEntity(
-                                        eventType = "AUTO_RESUSPEND_FAILED",
-                                        target = packageName,
-                                        details = "Package $packageName reinstalled but suspension failed: ${suspendResult.reason}",
-                                        severity = "ERROR"
+                                }
+                                else -> {
+                                    snapDao.update(
+                                        snappedApp.copy(
+                                            actualState = SnapState.SNAP_FAILED,
+                                            installationState = InstallationState.INSTALLED,
+                                            lastError = result.errorMessage,
+                                            updatedAt = now
+                                        )
                                     )
-                                )
+                                    auditDao.insert(
+                                        SecurityAuditEventEntity(
+                                            eventType = "AUTO_RESUSPEND_FAILED",
+                                            target = packageName,
+                                            details = "Package $packageName reinstalled but suspension failed: ${result.errorMessage}",
+                                            severity = "ERROR"
+                                        )
+                                    )
+                                }
                             }
                         }
                     }
                 }
             } catch (e: Exception) {
-                // Prevent unhandled crashes in background receiver
                 e.printStackTrace()
             } finally {
                 pendingResult.finish()

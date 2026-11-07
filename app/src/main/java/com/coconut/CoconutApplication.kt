@@ -20,14 +20,13 @@ class CoconutApplication : Application() {
         // Schedule periodic background reconciliation safety net
         ReconciliationWorker.schedule(this)
 
-        // Run startup policy reconciliation
+        // Run startup policy evaluation & ensure safety release of legacy self-protection
         CoroutineScope(Dispatchers.IO).launch {
             if (policyManager.isDeviceOwner()) {
-                // Ensure self-protection is active
-                policyManager.setSelfProtection(true)
+                // Section 2.8 & 3: Release any legacy self-uninstall protection so Coconut never traps the user
+                policyManager.releaseSelfProtectionIfActive()
                 reconciliationManager.reconcile("APP_STARTUP")
             }
         }
     }
 }
-

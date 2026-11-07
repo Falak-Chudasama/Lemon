@@ -3,7 +3,6 @@ package com.coconut.policy
 import android.app.admin.DeviceAdminReceiver
 import android.content.Context
 import android.content.Intent
-import android.widget.Toast
 import com.coconut.data.AppDatabase
 import com.coconut.data.SecurityAuditEventEntity
 import kotlinx.coroutines.CoroutineScope
@@ -25,7 +24,7 @@ class CoconutDeviceAdminReceiver : DeviceAdminReceiver() {
                     severity = "INFO"
                 )
             )
-            // Trigger reconciliation to apply default policies
+            // Trigger reconciliation to evaluate policies
             PolicyReconciliationManager(appContext).reconcile("ADMIN_ENABLED")
         }
     }
@@ -34,16 +33,14 @@ class CoconutDeviceAdminReceiver : DeviceAdminReceiver() {
         super.onProfileProvisioningComplete(context, intent)
         val appContext = context.applicationContext
         CoroutineScope(Dispatchers.IO).launch {
-            val policyManager = CoconutPolicyManager(appContext)
-            // Immediately lock down Coconut against uninstallation
-            policyManager.setSelfProtection(true)
-
+            // Note: Per Section 2.8, do NOT automatically lock Coconut itself against uninstallation.
+            // Self-protection must default to false and never trap the user.
             val db = AppDatabase.get(appContext)
             db.securityAuditDao().insert(
                 SecurityAuditEventEntity(
                     eventType = "PROVISIONING_COMPLETE",
                     target = "Coconut DPC",
-                    details = "Fully managed device provisioning successfully completed. Self-protection engaged.",
+                    details = "Fully managed device provisioning successfully completed. Device Owner active.",
                     severity = "INFO"
                 )
             )

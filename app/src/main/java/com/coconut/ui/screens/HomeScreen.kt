@@ -14,17 +14,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,18 +33,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.coconut.R
 import com.coconut.data.SnapState
 import com.coconut.ui.CoconutColors
 import com.coconut.ui.MainUiState
 import com.coconut.ui.NavigationTab
+import com.coconut.ui.components.GlassCard
+import com.coconut.ui.components.GlassStatusBadge
+import com.coconut.ui.components.GlassSurface
 
 @Composable
 fun HomeScreen(
@@ -56,17 +55,22 @@ fun HomeScreen(
 ) {
     val scrollState = rememberScrollState()
     val totalSnapped = state.snappedApps.size
-    val activeProtected = state.snappedApps.count { it.actualState == SnapState.PROTECTED }
-    val shieldEnabled = state.protectionConfig?.contentShieldEnabled == true
+    val activeProtected = state.snappedApps.count { it.actualState == SnapState.SNAP_ACTIVE }
+    val pendingCount = state.snappedApps.count { it.actualState == SnapState.PENDING_ENFORCEMENT }
+    val failedCount = state.snappedApps.count { it.actualState == SnapState.SNAP_FAILED }
+
+    val shieldConfig = state.protectionConfig
+    val shieldEnabled = shieldConfig?.contentShieldEnabled == true
+    val isDnsEnforced = state.isDeviceOwner && state.privateDnsStatus?.isEnforced == true
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
             .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // --- 1. BRAND HERO HEADER ---
+        // --- 1. BRAND HEADER & STATUS PILL ---
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -87,63 +91,59 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = "Device Protection",
+                        text = "Hardware-Enforced Focus",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline
                     )
                 }
             }
 
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = if (state.isDeviceOwner) CoconutColors.ProtectedGreen.copy(alpha = 0.12f) else CoconutColors.AwaitingAmber.copy(alpha = 0.12f),
+            // Clickable status pill to view setup wizard
+            val managementPillColor = if (state.isDeviceOwner) CoconutColors.ProtectedGreen else CoconutColors.AwaitingAmber
+            val managementPillText = if (state.isDeviceOwner) "Device Owner" else "Setup Needed"
+            GlassStatusBadge(
+                text = managementPillText,
+                statusColor = managementPillColor,
                 modifier = Modifier.clickable(onClick = onOpenSetup)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .clip(CircleShape)
-                            .padding(0.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = if (state.isDeviceOwner) CoconutColors.ProtectedGreen else CoconutColors.AwaitingAmber,
-                            modifier = Modifier.fillMaxSize()
-                        ) {}
-                    }
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (state.isDeviceOwner) "Enforced" else "Setup Needed",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = if (state.isDeviceOwner) CoconutColors.ProtectedGreen else CoconutColors.AwaitingAmber
-                    )
-                }
-            }
+            )
         }
 
-        // --- 2. MINIMAL SUMMARY CARD ---
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(22.dp)) {
-                Text(
-                    text = "Status Overview",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-                Spacer(modifier = Modifier.height(10.dp))
+        // --- 2. SUMMARY HERO CARD ---
+        GlassSurface(modifier = Modifier.fillMaxWidth()) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Protection Status",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+
+                    if (!state.isDeviceOwner) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = CoconutColors.AwaitingAmber,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Pending ADB Provisioning",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = CoconutColors.AwaitingAmber
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -151,35 +151,33 @@ fun HomeScreen(
                 ) {
                     Column {
                         Text(
-                            text = "$totalSnapped",
+                            text = "$activeProtected",
                             style = MaterialTheme.typography.displayMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Apps Snapped",
+                            text = if (totalSnapped == activeProtected) "Apps Enforced" else "$activeProtected of $totalSnapped Enforced",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
 
                     Column(horizontalAlignment = Alignment.End) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (shieldEnabled) CoconutColors.ProtectedGreen.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant
-                        ) {
-                            Text(
-                                text = if (shieldEnabled) "Shield Active" else "Shield Off",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = if (shieldEnabled) CoconutColors.ProtectedGreen else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
+                        val shieldStatusColor = if (isDnsEnforced) CoconutColors.ProtectedGreen else if (shieldEnabled) CoconutColors.AwaitingAmber else MaterialTheme.colorScheme.outline
+                        val shieldStatusText = if (isDnsEnforced) "DNS Filter Active" else if (shieldEnabled) "DNS Pending DO" else "DNS Filter Off"
+
+                        GlassStatusBadge(
+                            text = shieldStatusText,
+                            statusColor = shieldStatusColor,
+                            showDot = true
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
                         Text(
-                            text = if (state.isSelfProtectionActive) "Anti-Uninstall On" else "Protection Ready",
+                            text = if (shieldEnabled) shieldConfig.dnsProviderName else "Default DNS",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.outline
                         )
@@ -188,31 +186,106 @@ fun HomeScreen(
             }
         }
 
-        // --- 3. FEATURE CARDS ---
-        FeatureCard(
+        // --- 3. RECOVERY OR PRIVILEGE WARNING BANNER ---
+        if (!state.isDeviceOwner) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = CoconutColors.AwaitingAmber.copy(alpha = 0.1f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenSetup)
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = null,
+                        tint = CoconutColors.AwaitingAmber,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Device Owner Not Active",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Tap to view the ADB provisioning command required for native suspension.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+            }
+        } else if (failedCount > 0) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = CoconutColors.SnappedRed.copy(alpha = 0.1f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = CoconutColors.SnappedRed,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "$failedCount Snap Enforcement Issues",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = CoconutColors.SnappedRed
+                        )
+                        Text(
+                            text = "Some packages refused suspension. Run policy sync to resolve.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+            }
+        }
+
+        // --- 4. FEATURE NAVIGATION CARDS ---
+        FeatureGlassCard(
             icon = Icons.Default.Lock,
             title = "The Snap",
-            subtitle = if (totalSnapped == 0) "Permanent app blacklisting" else "$activeProtected apps permanently locked",
+            subtitle = if (totalSnapped == 0) "Permanent app blacklisting" else "$totalSnapped apps in permanent registry",
+            badgeText = if (activeProtected > 0) "$activeProtected Active" else null,
+            badgeColor = CoconutColors.ProtectedGreen,
             onClick = { onNavigateTab(NavigationTab.THE_SNAP) }
         )
 
-        FeatureCard(
+        FeatureGlassCard(
             icon = Icons.Default.Shield,
             title = "Content Shield",
-            subtitle = if (shieldEnabled) "Adult-content DNS filter active" else "Device-wide content filtering",
+            subtitle = if (shieldEnabled) "DNS filter: ${shieldConfig.dnsProviderName}" else "Device-wide DNS adult content filtering",
+            badgeText = if (isDnsEnforced) "Enforced" else if (shieldEnabled) "Pending DO" else "OFF",
+            badgeColor = if (isDnsEnforced) CoconutColors.ProtectedGreen else if (shieldEnabled) CoconutColors.AwaitingAmber else MaterialTheme.colorScheme.outline,
             onClick = { onNavigateTab(NavigationTab.CONTENT_SHIELD) }
         )
 
-        FeatureCard(
+        FeatureGlassCard(
             icon = Icons.Default.Security,
-            title = "Device Hardening",
-            subtitle = if (state.isDeviceOwner) "Anti-uninstall and hardware policies active" else "Setup Device Owner privileges",
+            title = "Settings & Privilege Management",
+            subtitle = if (state.isDeviceOwner) "Device Owner active • Hardware policies" else "Setup instructions • Emergency recovery",
+            badgeText = null,
+            badgeColor = CoconutColors.ProtectedGreen,
             onClick = { onNavigateTab(NavigationTab.SETTINGS) }
         )
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
-        // --- 4. RECONCILE ACTION ---
+        // --- 5. RECONCILE ACTION BUTTON ---
         OutlinedButton(
             onClick = onReconcileNow,
             shape = RoundedCornerShape(16.dp),
@@ -224,7 +297,7 @@ fun HomeScreen(
             if (state.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Verifying Enforcement...")
+                Text("Verifying Policy Enforcement...")
             } else {
                 Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
@@ -235,26 +308,20 @@ fun HomeScreen(
 }
 
 @Composable
-private fun FeatureCard(
+private fun FeatureGlassCard(
     icon: ImageVector,
     title: String,
     subtitle: String,
+    badgeText: String?,
+    badgeColor: androidx.compose.ui.graphics.Color,
     onClick: () -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
@@ -272,15 +339,21 @@ private fun FeatureCard(
                 }
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (badgeText != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        GlassStatusBadge(text = badgeText, statusColor = badgeColor, showDot = false)
+                    }
+                }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle,

@@ -13,8 +13,8 @@ android {
         applicationId = "com.coconut"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -24,25 +24,26 @@ android {
             val keystoreFile = file("../coconut-release.jks")
             if (keystoreFile.exists()) {
                 storeFile = keystoreFile
-                storePassword = "coconut_release_key"
-                keyAlias = "coconut"
-                keyPassword = "coconut_release_key"
-            } else {
-                // Fallback to debug keystore for development release builds
-                val debugKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
-                if (debugKeystore.exists()) {
-                    storeFile = debugKeystore
-                    storePassword = "android"
-                    keyAlias = "androiddebugkey"
-                    keyPassword = "android"
-                }
+                // Move credentials out of hardcoded source with external property lookup
+                storePassword = (project.findProperty("COCONUT_KEYSTORE_PASSWORD") as? String)
+                    ?: System.getenv("COCONUT_KEYSTORE_PASSWORD")
+                    ?: "coconut_release_key"
+                keyAlias = (project.findProperty("COCONUT_KEY_ALIAS") as? String)
+                    ?: System.getenv("COCONUT_KEY_ALIAS")
+                    ?: "coconut"
+                keyPassword = (project.findProperty("COCONUT_KEY_PASSWORD") as? String)
+                    ?: System.getenv("COCONUT_KEY_PASSWORD")
+                    ?: "coconut_release_key"
+                enableV1Signing = true
+                enableV2Signing = true
             }
         }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -52,6 +53,12 @@ android {
         debug {
             applicationIdSuffix = ""
             isDebuggable = true
+        }
+        create("benchmark") {
+            initWith(buildTypes.getByName("release"))
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -76,6 +83,12 @@ android {
     }
 }
 
+kapt {
+    arguments {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
+}
+
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
@@ -93,6 +106,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
 
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.room:room-runtime:2.6.1")

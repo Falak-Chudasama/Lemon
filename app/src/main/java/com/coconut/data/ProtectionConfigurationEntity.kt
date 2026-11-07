@@ -10,8 +10,8 @@ data class ProtectionConfigurationEntity(
     val contentShieldEnabled: Boolean = false,
     val dnsProviderName: String = "CleanBrowsing Family",
     val dnsHostname: String = "family-filter-dns.cleanbrowsing.org",
-    val selfProtectionEnabled: Boolean = true,
-    val disallowConfigPrivateDns: Boolean = true,
+    val selfProtectionEnabled: Boolean = false,
+    val disallowConfigPrivateDns: Boolean = false,
     val disallowConfigVpn: Boolean = false,
     val disallowDebugging: Boolean = false,
     val disallowUnknownSources: Boolean = false,
@@ -20,4 +20,3 @@ data class ProtectionConfigurationEntity(
     val disallowAppsControl: Boolean = false,
     val updatedAt: Long = System.currentTimeMillis()
 )
-

@@ -15,7 +15,8 @@ class SnapRepository(context: Context) {
         category: String
     ): PolicyResult = repo.snapApp(packageName, applicationName, category)
 
-    suspend fun unsnapApp(packageName: String): PolicyResult = repo.unsnapApp(packageName)
+    suspend fun emergencyRecoveryUnsnap(packageName: String): PolicyResult =
+        repo.emergencyRecoveryUnsnap(packageName)
 
     suspend fun reconcile() {
         repo.reconcile("SNAP_REPO_CALL")

@@ -38,7 +38,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.coconut.R
 import com.coconut.ui.CoconutColors
 import com.coconut.ui.MainUiState
@@ -69,7 +68,7 @@ fun SetupWizardDialog(
                     .height(48.dp)
             ) {
                 Text(
-                    text = "Continue to Coconut",
+                    text = "Continue",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -84,7 +83,7 @@ fun SetupWizardDialog(
         },
         title = {
             Text(
-                text = "Device Setup & Permissions",
+                text = "Privilege & Provisioning Setup",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
@@ -96,32 +95,32 @@ fun SetupWizardDialog(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = "To enable OS-level app blacklisting and DNS filtering, please grant the following:",
+                    text = "Android OS requires specific privileges for native app suspension and Private DNS management:",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                // 1. Device Admin
+                // 1. Device Administrator (ordinary)
                 SetupItemCard(
                     title = "Device Administrator",
-                    description = "Required to enforce device security policies.",
-                    isComplete = state.isDeviceAdmin || state.isDeviceOwner,
+                    description = if (state.isDeviceAdmin) "Admin active. Note: Ordinary admin CANNOT suspend apps or set DNS." else "Basic device admin activation.",
+                    isComplete = state.isDeviceAdmin,
                     actionLabel = "Activate",
                     onAction = onRequestDeviceAdmin
                 )
 
-                // 2. Notifications
+                // 2. Notifications Permission
                 SetupItemCard(
-                    title = "Protection Alerts",
-                    description = "Notifies you when apps are blocked or policies sync.",
+                    title = "System Alerts",
+                    description = "Notifies you of background policy verifications.",
                     isComplete = hasNotificationPermission,
                     actionLabel = "Allow",
                     onAction = onRequestNotificationPermission
                 )
 
-                // 3. Device Owner Provisioning
+                // 3. Device Owner Mode (DPC)
                 Card(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (state.isDeviceOwner) CoconutColors.ProtectedGreen.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant
                     ),
@@ -132,12 +131,12 @@ fun SetupWizardDialog(
                             Icon(
                                 imageVector = if (state.isDeviceOwner) Icons.Default.CheckCircle else Icons.Default.Security,
                                 contentDescription = null,
-                                tint = if (state.isDeviceOwner) CoconutColors.ProtectedGreen else CoconutColors.HuskBronze,
+                                tint = if (state.isDeviceOwner) CoconutColors.ProtectedGreen else CoconutColors.AwaitingAmber,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Device Owner Mode",
+                                text = "Device Owner (Enterprise DPC)",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
@@ -155,9 +154,9 @@ fun SetupWizardDialog(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = if (state.isDeviceOwner) {
-                                "Full hardware-enforced protection is active."
+                                "Full OS-level suspension and Private DNS locking are active."
                             } else {
-                                "Allows hardware-level suspension & uninstall blocking."
+                                "Mandatory for native package suspension and Private DNS enforcement. Requires ADB command on a device with no accounts added."
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.outline
@@ -176,7 +175,7 @@ fun SetupWizardDialog(
                             ) {
                                 Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Copy ADB Command", style = MaterialTheme.typography.labelMedium)
+                                Text("Copy ADB DPC Command", style = MaterialTheme.typography.labelMedium)
                             }
                         }
                     }
@@ -246,7 +245,7 @@ private fun SetupItemCard(
                 }
             } else {
                 Text(
-                    text = "Granted",
+                    text = "Active",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = CoconutColors.ProtectedGreen,
@@ -256,4 +255,3 @@ private fun SetupItemCard(
         }
     }
 }
-
