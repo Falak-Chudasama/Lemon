@@ -1,5 +1,5 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.Coconut" parent="android:Theme.Material.Light.NoActionBar">
+    <style name="Theme.Lemon" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
@@ -7,9 +7,13 @@
         <item name="android:windowNoTitle">true</item>
     </style>
 
-    <style name="Theme.Coconut.Dialog" parent="android:Theme.Material.Light.Dialog.NoActionBar">
+    <style name="Theme.Lemon.Dialog" parent="android:Theme.Material.Light.Dialog.NoActionBar">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsFloating">true</item>
         <item name="android:windowNoTitle">true</item>
     </style>
+
+    <!-- Legacy style aliases -->
+    <style name="Theme.Coconut" parent="Theme.Lemon" />
+    <style name="Theme.Coconut.Dialog" parent="Theme.Lemon.Dialog" />
 </resources>

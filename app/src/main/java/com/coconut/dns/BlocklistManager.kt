@@ -157,7 +157,7 @@ class BlocklistManager(private val context: Context) {
             conn.connectTimeout = 15000
             conn.readTimeout = 20000
             conn.instanceFollowRedirects = true
-            conn.setRequestProperty("User-Agent", "Coconut-Android/2.0")
+            conn.setRequestProperty("User-Agent", "Lemon-Android/2.0")
 
             if (conn.responseCode != HttpURLConnection.HTTP_OK) {
                 conn.disconnect()

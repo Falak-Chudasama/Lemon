@@ -22,7 +22,7 @@ class DnsScheduleReceiver : BroadcastReceiver() {
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
                         val manager = DnsScheduleManager(context)
-                        manager.reconcileSchedule()
+                        manager.reconcileSchedule(enforceBoundary = true)
                     } finally {
                         pendingResult.finish()
                     }

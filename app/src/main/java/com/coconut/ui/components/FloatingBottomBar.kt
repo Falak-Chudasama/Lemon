@@ -33,13 +33,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.coconut.ui.CoconutColors
+import com.coconut.ui.LemonColors
 import com.coconut.ui.NavigationTab
 
 @Composable
@@ -50,17 +49,8 @@ fun FloatingBottomBar(
 ) {
     val isDark = isSystemInDarkTheme()
 
-    val containerColor = if (isDark) {
-        CoconutColors.GlassDarkFill
-    } else {
-        CoconutColors.GlassLightFill
-    }
-
-    val borderColor = if (isDark) {
-        CoconutColors.GlassDarkBorder
-    } else {
-        CoconutColors.GlassLightBorder
-    }
+    val containerColor = if (isDark) LemonColors.GlassDarkFill else LemonColors.GlassLightFill
+    val borderColor = if (isDark) LemonColors.GlassDarkBorder else LemonColors.GlassLightBorder
 
     Box(
         modifier = modifier
@@ -73,7 +63,7 @@ fun FloatingBottomBar(
             shape = RoundedCornerShape(32.dp),
             color = containerColor,
             border = BorderStroke(1.dp, borderColor),
-            shadowElevation = 6.dp,
+            shadowElevation = 4.dp,
             modifier = Modifier
                 .height(68.dp)
                 .fillMaxWidth()
@@ -119,8 +109,8 @@ private fun BottomNavItem(
 ) {
     val isDark = isSystemInDarkTheme()
 
-    val activeColor = if (isDark) CoconutColors.CaramelDarkAccent else CoconutColors.CocoaPrimary
-    val inactiveColor = if (isDark) CoconutColors.TextSecondaryDark else CoconutColors.TextSecondaryLight
+    val activeColor = if (isDark) LemonColors.PrimaryYellowDark else LemonColors.TextPrimaryLight
+    val inactiveColor = if (isDark) LemonColors.TextSecondaryDark else LemonColors.TextSecondaryLight
 
     val tintColor by animateColorAsState(
         targetValue = if (isSelected) activeColor else inactiveColor,
@@ -130,9 +120,9 @@ private fun BottomNavItem(
 
     val backgroundPillColor = if (isSelected) {
         if (isDark) {
-            CoconutColors.CaramelDarkAccent.copy(alpha = 0.15f)
+            LemonColors.PrimaryYellowDark.copy(alpha = 0.18f)
         } else {
-            CoconutColors.CocoaPrimary.copy(alpha = 0.10f)
+            LemonColors.PrimaryYellowLight.copy(alpha = 0.35f)
         }
     } else {
         Color.Transparent
@@ -173,4 +163,3 @@ private fun BottomNavItem(
         }
     }
 }
-

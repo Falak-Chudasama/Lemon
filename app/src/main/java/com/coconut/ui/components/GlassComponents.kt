@@ -24,7 +24,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.coconut.ui.CoconutColors
+import com.coconut.ui.LemonColors
 
 @Composable
 fun GlassSurface(
@@ -34,17 +34,8 @@ fun GlassSurface(
     content: @Composable BoxScope.() -> Unit
 ) {
     val isDark = isSystemInDarkTheme()
-    val containerColor = if (isDark) {
-        CoconutColors.GlassDarkFill
-    } else {
-        CoconutColors.GlassLightFill
-    }
-
-    val borderColor = if (isDark) {
-        CoconutColors.GlassDarkBorder
-    } else {
-        CoconutColors.GlassLightBorder
-    }
+    val containerColor = if (isDark) LemonColors.GlassDarkFill else LemonColors.GlassLightFill
+    val borderColor = if (isDark) LemonColors.GlassDarkBorder else LemonColors.GlassLightBorder
 
     Surface(
         modifier = modifier,
@@ -69,13 +60,13 @@ fun GlassCard(
     val containerColor = if (isDark) {
         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
     } else {
-        MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
     }
 
     val borderColor = if (isDark) {
-        Color.White.copy(alpha = 0.08f)
+        LemonColors.BorderDark.copy(alpha = 0.6f)
     } else {
-        CoconutColors.Caramel.copy(alpha = 0.18f)
+        LemonColors.BorderLight
     }
 
     val clickModifier = if (onClick != null) {
@@ -105,8 +96,8 @@ fun GlassStatusBadge(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
-        color = statusColor.copy(alpha = 0.12f),
-        border = BorderStroke(1.dp, statusColor.copy(alpha = 0.25f))
+        color = statusColor.copy(alpha = 0.14f),
+        border = BorderStroke(1.dp, statusColor.copy(alpha = 0.30f))
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
@@ -131,4 +122,3 @@ fun GlassStatusBadge(
         }
     }
 }
-

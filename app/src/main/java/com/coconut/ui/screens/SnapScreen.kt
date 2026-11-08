@@ -64,8 +64,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import com.coconut.ui.AppIconCache
-import com.coconut.ui.CoconutColors
 import com.coconut.ui.InstalledApp
+import com.coconut.ui.LemonColors
 import com.coconut.ui.MainViewModel
 import com.coconut.ui.components.GlassStatusBadge
 
@@ -83,7 +83,7 @@ fun SnapScreen(viewModel: MainViewModel) {
         state.snappedApps.map { it.packageName }.toSet()
     }
 
-    // Dynamic list of categories present among installed apps
+    // Dynamic categories present among installed apps
     val availableCategories = remember(state.installedApps) {
         listOf("All") + state.installedApps.map { it.category }.distinct().sorted()
     }
@@ -115,13 +115,12 @@ fun SnapScreen(viewModel: MainViewModel) {
     val snappedCount = snappedPackageNames.size
     val restrictedGrammarText = if (snappedCount == 1) "1 app restricted" else "$snappedCount apps restricted"
 
-    // Single LazyColumn full-page scrolling: Header, search, filters, and apps scroll as one
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // 1. Page Header
         item(key = "header") {
@@ -147,17 +146,17 @@ fun SnapScreen(viewModel: MainViewModel) {
                 if (state.isStrictModeActive) {
                     GlassStatusBadge(
                         text = "Strict Mode",
-                        statusColor = CoconutColors.WarningLight
+                        statusColor = LemonColors.WarningLight
                     )
                 }
             }
         }
 
-        // 2. Accessibility Permission Notice (functional, non-marketing)
+        // 2. Accessibility Permission Notice
         if (!state.isAccessibilityGranted) {
             item(key = "accessibility_card") {
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f)),
                     modifier = Modifier.fillMaxWidth()
@@ -165,7 +164,7 @@ fun SnapScreen(viewModel: MainViewModel) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp),
+                            .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -182,7 +181,7 @@ fun SnapScreen(viewModel: MainViewModel) {
                                 color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f)
                             )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Button(
                             onClick = { showAccessibilityDisclosure = true },
                             shape = RoundedCornerShape(12.dp),
@@ -228,7 +227,7 @@ fun SnapScreen(viewModel: MainViewModel) {
                 shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
                     focusedContainerColor = MaterialTheme.colorScheme.surface,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surface
                 )
@@ -327,7 +326,7 @@ fun SnapScreen(viewModel: MainViewModel) {
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = "This Snap cannot be reversed through normal Coconut controls.",
+                        text = "This Snap cannot be reversed through normal Lemon controls.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                         fontWeight = FontWeight.Medium
@@ -357,8 +356,8 @@ fun SnapScreen(viewModel: MainViewModel) {
                     enabled = state.typedSnapText == "SNAP",
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CoconutColors.CocoaPrimary,
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
                     Text("Confirm Snap")
@@ -386,7 +385,7 @@ fun SnapScreen(viewModel: MainViewModel) {
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Coconut uses the AccessibilityService API strictly to detect foreground launches of apps you have snapped and return to the home screen.",
+                        text = "Lemon uses the AccessibilityService API strictly to detect foreground launches of apps you have snapped and return to the home screen.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
@@ -413,7 +412,11 @@ fun SnapScreen(viewModel: MainViewModel) {
                         val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                         context.startActivity(intent)
                     },
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
                     Text("Continue")
                 }
@@ -428,10 +431,6 @@ fun SnapScreen(viewModel: MainViewModel) {
     }
 }
 
-/**
- * Unified application row: Exactly one surface with consistent 18dp corner shape,
- * 1dp subtle border, and NO nested grey/white rectangle defect.
- */
 @Composable
 private fun UnifiedAppSnapRow(
     app: InstalledApp,
@@ -452,7 +451,7 @@ private fun UnifiedAppSnapRow(
     }
 
     val borderColor = if (isSnapped) {
-        CoconutColors.CocoaPrimary.copy(alpha = 0.25f)
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
     } else {
         MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
     }
@@ -535,7 +534,7 @@ private fun UnifiedAppSnapRow(
             if (isSnapped) {
                 GlassStatusBadge(
                     text = "Snapped",
-                    statusColor = CoconutColors.ErrorLight,
+                    statusColor = LemonColors.ErrorLight,
                     showDot = true
                 )
             } else {
@@ -543,8 +542,8 @@ private fun UnifiedAppSnapRow(
                     onClick = onSnapClicked,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CoconutColors.CocoaPrimary,
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     ),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
                 ) {

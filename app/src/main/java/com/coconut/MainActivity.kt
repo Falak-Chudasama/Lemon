@@ -6,7 +6,7 @@ import androidx.activity.viewModels
 import androidx.activity.compose.setContent
 import androidx.fragment.app.FragmentActivity
 import com.coconut.ui.CoconutApp
-import com.coconut.ui.CoconutTheme
+import com.coconut.ui.LemonTheme
 import com.coconut.ui.MainViewModel
 
 class MainActivity : FragmentActivity() {
@@ -18,7 +18,7 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            CoconutTheme {
+            LemonTheme {
                 CoconutApp(viewModel = viewModel)
             }
         }

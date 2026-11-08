@@ -89,38 +89,51 @@ class DnsScheduleManager(private val context: Context) {
 
     /**
      * Reconciles schedule enforcement state and arms the next AlarmManager boundary.
+     * When enforceBoundary is true (boundary alarms, boot, time changes),
+     * DNS is actively turned ON from 11:00 PM – 6:00 AM, and turned OFF outside the schedule window.
      */
-    suspend fun reconcileSchedule(): Boolean = withContext(Dispatchers.IO) {
-        val schedule = scheduleDao.getSchedule() ?: DnsScheduleEntity().also {
+    suspend fun reconcileSchedule(enforceBoundary: Boolean = true): Boolean = withContext(Dispatchers.IO) {
+        val schedule = scheduleDao.getSchedule() ?: DnsScheduleEntity(
+            startHour = 23,
+            startMinute = 0,
+            endHour = 6,
+            endMinute = 0,
+            enabled = true
+        ).also {
             scheduleDao.insertOrUpdate(it)
+        }
+
+        // Schedule is permanently enabled
+        if (!schedule.enabled) {
+            scheduleDao.setEnabled(true)
         }
 
         val now = System.currentTimeMillis()
         scheduleDao.updateLastEvaluated(now)
 
-        if (!schedule.enabled) {
-            cancelNextAlarm()
-            return@withContext false
-        }
-
         val isInside = isInsideScheduleWindow(
-            startHour = schedule.startHour,
-            startMinute = schedule.startMinute,
-            endHour = schedule.endHour,
-            endMinute = schedule.endMinute
+            startHour = 23,
+            startMinute = 0,
+            endHour = 6,
+            endMinute = 0
         )
 
-        // If inside the window and VPN is prepared, ensure VPN is running
+        // If inside the scheduled window (11:00 PM – 6:00 AM), ensure VPN is running
         if (isInside) {
             if (VpnService.prepare(appContext) == null) {
                 if (!CoconutVpnService.isVpnRunning.value) {
                     CoconutVpnService.start(appContext)
                 }
             }
+        } else if (enforceBoundary) {
+            // Outside schedule window at boundary or boot: turn DNS VPN Off
+            if (CoconutVpnService.isVpnRunning.value) {
+                CoconutVpnService.stop(appContext)
+            }
         }
 
         // Arm next alarm transition
-        armNextAlarm(schedule.startHour, schedule.startMinute, schedule.endHour, schedule.endMinute)
+        armNextAlarm(23, 0, 6, 0)
 
         // Also check if any 30-day domain requests have matured
         DomainQueueManager(appContext).applyMaturedRequests()

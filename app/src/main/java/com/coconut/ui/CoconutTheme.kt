@@ -16,7 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.coconut.R
 
-// Host Grotesk: Display titles, major headings, and selected emphasis
+// Host Grotesk: Display titles, major headings, and primary emphasis
 val HostGroteskFontFamily = FontFamily(
     Font(R.font.host_grotesk_regular, FontWeight.Normal),
     Font(R.font.host_grotesk_medium, FontWeight.Medium),
@@ -24,7 +24,7 @@ val HostGroteskFontFamily = FontFamily(
     Font(R.font.host_grotesk_bold, FontWeight.Bold)
 )
 
-// Urbanist: Normal body text, labels, inputs, buttons, and secondary information
+// Urbanist: Body text, labels, inputs, buttons, and secondary captions
 val UrbanistFontFamily = FontFamily(
     Font(R.font.urbanist_regular, FontWeight.Normal),
     Font(R.font.urbanist_medium, FontWeight.Medium),
@@ -32,53 +32,85 @@ val UrbanistFontFamily = FontFamily(
     Font(R.font.urbanist_bold, FontWeight.Bold)
 )
 
-object CoconutColors {
+object LemonColors {
     // Light palette tokens
-    val IvoryBackground = Color(0xFFF7F3ED)
-    val PulpSurface = Color(0xFFFFFCF7)
-    val SurfaceVariantLight = Color(0xFFF0E9E0)
-    val SurfaceRaisedLight = Color(0xFFFFFDFB)
-    val CocoaPrimary = Color(0xFF704426)
-    val EspressoDark = Color(0xFF4A2E1F)
-    val ToastedBrown = Color(0xFF8B5A35)
-    val CaramelSecondary = Color(0xFFB77A4A)
-    val CopperAccent = Color(0xFFC58A59)
-    val TextPrimaryLight = Color(0xFF211A16)
-    val TextSecondaryLight = Color(0xFF6F6258)
-    val OutlineLight = Color(0xFFD7C9BA)
-    val SuccessLight = Color(0xFF18794E)
-    val ErrorLight = Color(0xFFB3261E)
+    val BackgroundLight = Color(0xFFFFFCF4)
+    val SurfaceLight = Color(0xFFFFFFFF)
+    val SurfaceSecondaryLight = Color(0xFFF7F1E2)
+    val PrimaryYellowLight = Color(0xFFF3C94F)
+    val PressedYellowLight = Color(0xFFDFAF2E)
+    val SoftYellowLight = Color(0xFFFFF1BF)
+    val PrimaryGreenLight = Color(0xFF668F55)
+    val SoftGreenLight = Color(0xFFEAF1E4)
+    val TextPrimaryLight = Color(0xFF252319)
+    val TextSecondaryLight = Color(0xFF777366)
+    val BorderLight = Color(0xFFEAE4D5)
+    val ErrorLight = Color(0xFFBA1A1A)
     val WarningLight = Color(0xFF8A5A00)
 
     // Dark palette tokens
-    val DarkCharcoalBackground = Color(0xFF15120F)
-    val DarkSurface = Color(0xFF211A16)
-    val DarkSurfaceVariant = Color(0xFF2A211B)
-    val DarkGlassSurface = Color(0xFF2A211B)
-    val CaramelDarkAccent = Color(0xFFC58A59)
-    val SecondaryBrownDark = Color(0xFFB77A4A)
-    val DeepCaramel = Color(0xFF7A4B2A)
-    val TextPrimaryDark = Color(0xFFF6EFE6)
-    val TextSecondaryDark = Color(0xFFC2B4A5)
-    val OutlineDark = Color(0xFF514237)
-    val SuccessDark = Color(0xFF56C596)
-    val ErrorDark = Color(0xFFFF8A80)
-    val WarningDark = Color(0xFFE6B566)
+    val BackgroundDark = Color(0xFF15160F)
+    val SurfaceDark = Color(0xFF1E2118)
+    val SurfaceElevatedDark = Color(0xFF282C20)
+    val PrimaryYellowDark = Color(0xFFF4C84A)
+    val PressedYellowDark = Color(0xFFFFD968)
+    val SoftYellowDark = Color(0xFF40391F)
+    val PrimaryGreenDark = Color(0xFFA6C58A)
+    val SoftGreenDark = Color(0xFF2B3A28)
+    val TextPrimaryDark = Color(0xFFF7F3E8)
+    val TextSecondaryDark = Color(0xFFB7B09E)
+    val BorderDark = Color(0xFF373A2E)
+    val ErrorDark = Color(0xFFFFB4AB)
+    val WarningDark = Color(0xFFF5BF48)
 
-    // Floating glass materials
-    val GlassLightFill = Color(0xDCFFFCF7) // 86% opaque
-    val GlassLightBorder = Color(0x33D7C9BA)
-    val GlassDarkFill = Color(0xDC211A16) // 86% opaque
-    val GlassDarkBorder = Color(0x33514237)
-
-    // Backward compatibility aliases
-    val Caramel = CaramelSecondary
-    val SnappedRed = ErrorLight
-    val ProtectedGreen = SuccessLight
-    val AwaitingAmber = WarningLight
+    // iOS-inspired glass / floating nav tokens
+    val GlassLightFill = Color(0xF2FFFCF4) // 95% opacity warm cream
+    val GlassLightBorder = Color(0x33EAE4D5)
+    val GlassDarkFill = Color(0xF21E2118) // 95% opacity dark surface
+    val GlassDarkBorder = Color(0x33373A2E)
 }
 
-val CoconutTypography = Typography(
+// Backward-compatible alias referencing the canonical Lemon color system
+object CoconutColors {
+    val IvoryBackground = LemonColors.BackgroundLight
+    val PulpSurface = LemonColors.SurfaceLight
+    val SurfaceVariantLight = LemonColors.SurfaceSecondaryLight
+    val SurfaceRaisedLight = LemonColors.SurfaceLight
+    val CocoaPrimary = LemonColors.PrimaryYellowLight
+    val CocoaDark = LemonColors.PrimaryYellowDark
+    val TextPrimaryLight = LemonColors.TextPrimaryLight
+    val TextSecondaryLight = LemonColors.TextSecondaryLight
+    val OutlineLight = LemonColors.BorderLight
+    val SuccessLight = LemonColors.PrimaryGreenLight
+    val ErrorLight = LemonColors.ErrorLight
+    val WarningLight = LemonColors.WarningLight
+
+    val DarkCharcoalBackground = LemonColors.BackgroundDark
+    val DarkSurface = LemonColors.SurfaceDark
+    val DarkSurfaceVariant = LemonColors.SurfaceElevatedDark
+    val DarkGlassSurface = LemonColors.SurfaceElevatedDark
+    val CaramelDarkAccent = LemonColors.PrimaryYellowDark
+    val SecondaryBrownDark = LemonColors.PrimaryGreenDark
+    val DeepCaramel = LemonColors.SoftYellowDark
+    val TextPrimaryDark = LemonColors.TextPrimaryDark
+    val TextSecondaryDark = LemonColors.TextSecondaryDark
+    val OutlineDark = LemonColors.BorderDark
+    val SuccessDark = LemonColors.PrimaryGreenDark
+    val ErrorDark = LemonColors.ErrorDark
+    val WarningDark = LemonColors.WarningDark
+
+    val GlassLightFill = LemonColors.GlassLightFill
+    val GlassLightBorder = LemonColors.GlassLightBorder
+    val GlassDarkFill = LemonColors.GlassDarkFill
+    val GlassDarkBorder = LemonColors.GlassDarkBorder
+
+    val Caramel = LemonColors.PrimaryYellowLight
+    val SnappedRed = LemonColors.ErrorLight
+    val ProtectedGreen = LemonColors.PrimaryGreenLight
+    val AwaitingAmber = LemonColors.WarningLight
+}
+
+val LemonTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = HostGroteskFontFamily,
         fontWeight = FontWeight.Bold,
@@ -173,52 +205,54 @@ val CoconutTypography = Typography(
     )
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = CoconutColors.CocoaPrimary,
-    onPrimary = Color.White,
-    primaryContainer = CoconutColors.SurfaceVariantLight,
-    onPrimaryContainer = CoconutColors.TextPrimaryLight,
-    secondary = CoconutColors.CaramelSecondary,
+val CoconutTypography = LemonTypography
+
+private val LemonLightColorScheme = lightColorScheme(
+    primary = LemonColors.PrimaryYellowLight,
+    onPrimary = LemonColors.TextPrimaryLight, // Dark text on bright yellow buttons!
+    primaryContainer = LemonColors.SoftYellowLight,
+    onPrimaryContainer = LemonColors.TextPrimaryLight,
+    secondary = LemonColors.PrimaryGreenLight,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFE9DED1),
-    onSecondaryContainer = CoconutColors.TextPrimaryLight,
-    tertiary = CoconutColors.CopperAccent,
+    secondaryContainer = LemonColors.SoftGreenLight,
+    onSecondaryContainer = LemonColors.TextPrimaryLight,
+    tertiary = LemonColors.PrimaryGreenLight,
     onTertiary = Color.White,
-    background = CoconutColors.IvoryBackground,
-    onBackground = CoconutColors.TextPrimaryLight,
-    surface = CoconutColors.PulpSurface,
-    onSurface = CoconutColors.TextPrimaryLight,
-    surfaceVariant = CoconutColors.SurfaceVariantLight,
-    onSurfaceVariant = CoconutColors.TextSecondaryLight,
-    outline = CoconutColors.OutlineLight,
-    error = CoconutColors.ErrorLight,
+    background = LemonColors.BackgroundLight,
+    onBackground = LemonColors.TextPrimaryLight,
+    surface = LemonColors.SurfaceLight,
+    onSurface = LemonColors.TextPrimaryLight,
+    surfaceVariant = LemonColors.SurfaceSecondaryLight,
+    onSurfaceVariant = LemonColors.TextSecondaryLight,
+    outline = LemonColors.BorderLight,
+    error = LemonColors.ErrorLight,
     onError = Color.White
 )
 
-private val DarkColorScheme = darkColorScheme(
-    primary = CoconutColors.CaramelDarkAccent,
-    onPrimary = CoconutColors.TextPrimaryLight,
-    primaryContainer = CoconutColors.DarkSurfaceVariant,
-    onPrimaryContainer = CoconutColors.TextPrimaryDark,
-    secondary = CoconutColors.SecondaryBrownDark,
-    onSecondary = CoconutColors.TextPrimaryLight,
-    secondaryContainer = Color(0xFF352920),
-    onSecondaryContainer = CoconutColors.TextPrimaryDark,
-    tertiary = CoconutColors.DeepCaramel,
-    onTertiary = Color.White,
-    background = CoconutColors.DarkCharcoalBackground,
-    onBackground = CoconutColors.TextPrimaryDark,
-    surface = CoconutColors.DarkSurface,
-    onSurface = CoconutColors.TextPrimaryDark,
-    surfaceVariant = CoconutColors.DarkSurfaceVariant,
-    onSurfaceVariant = CoconutColors.TextSecondaryDark,
-    outline = CoconutColors.OutlineDark,
-    error = CoconutColors.ErrorDark,
+private val LemonDarkColorScheme = darkColorScheme(
+    primary = LemonColors.PrimaryYellowDark,
+    onPrimary = LemonColors.TextPrimaryLight, // Dark text on bright yellow buttons in dark mode too!
+    primaryContainer = LemonColors.SoftYellowDark,
+    onPrimaryContainer = LemonColors.TextPrimaryDark,
+    secondary = LemonColors.PrimaryGreenDark,
+    onSecondary = LemonColors.BackgroundDark,
+    secondaryContainer = LemonColors.SoftGreenDark,
+    onSecondaryContainer = LemonColors.TextPrimaryDark,
+    tertiary = LemonColors.PrimaryGreenDark,
+    onTertiary = LemonColors.BackgroundDark,
+    background = LemonColors.BackgroundDark,
+    onBackground = LemonColors.TextPrimaryDark,
+    surface = LemonColors.SurfaceDark,
+    onSurface = LemonColors.TextPrimaryDark,
+    surfaceVariant = LemonColors.SurfaceElevatedDark,
+    onSurfaceVariant = LemonColors.TextSecondaryDark,
+    outline = LemonColors.BorderDark,
+    error = LemonColors.ErrorDark,
     onError = Color(0xFF690005)
 )
 
 @Composable
-fun CoconutTheme(
+fun LemonTheme(
     content: @Composable () -> Unit
 ) {
     val themeMode by ThemePreferences.themeModeFlow.collectAsState()
@@ -230,11 +264,16 @@ fun CoconutTheme(
         AppThemeMode.DARK -> true
     }
 
-    val colorScheme = if (useDarkTheme) DarkColorScheme else LightColorScheme
+    val colorScheme = if (useDarkTheme) LemonDarkColorScheme else LemonLightColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = CoconutTypography,
+        typography = LemonTypography,
         content = content
     )
 }
+
+@Composable
+fun CoconutTheme(
+    content: @Composable () -> Unit
+) = LemonTheme(content)

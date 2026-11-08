@@ -31,11 +31,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -84,7 +81,7 @@ fun CoconutApp(viewModel: MainViewModel) {
                 if (activity != null) {
                     BiometricHelper.authenticate(
                         activity = activity,
-                        title = "Unlock Coconut",
+                        title = "Unlock Lemon",
                         subtitle = "Verify biometric or screen lock credential",
                         allowDeviceCredential = true,
                         onSuccess = { viewModel.unlockSession() },
@@ -149,9 +146,9 @@ fun CoconutApp(viewModel: MainViewModel) {
                 val messageText = state.errorMessage ?: state.bannerMessage ?: ""
 
                 Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = if (isError) MaterialTheme.colorScheme.errorContainer else CoconutColors.CocoaPrimary,
-                    shadowElevation = 6.dp,
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+                    shadowElevation = 4.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -164,7 +161,7 @@ fun CoconutApp(viewModel: MainViewModel) {
                             text = messageText,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
-                            color = if (isError) MaterialTheme.colorScheme.onErrorContainer else Color.White,
+                            color = if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(
@@ -174,7 +171,7 @@ fun CoconutApp(viewModel: MainViewModel) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Dismiss",
-                                tint = if (isError) MaterialTheme.colorScheme.onErrorContainer else Color.White,
+                                tint = if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -204,13 +201,13 @@ private fun AppLockScreen(onUnlockRequested: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Image(
-                painter = painterResource(id = R.drawable.ic_coconut_logo),
-                contentDescription = "Coconut",
-                modifier = Modifier.size(72.dp)
+                painter = painterResource(id = R.drawable.ic_lemon_mark),
+                contentDescription = "Lemon",
+                modifier = Modifier.size(80.dp)
             )
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "Coconut Locked",
+                text = "Lemon Locked",
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -226,8 +223,8 @@ private fun AppLockScreen(onUnlockRequested: () -> Unit) {
                 onClick = onUnlockRequested,
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = CoconutColors.CocoaPrimary,
-                    contentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 ),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp)
             ) {
@@ -237,7 +234,7 @@ private fun AppLockScreen(onUnlockRequested: () -> Unit) {
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Unlock Coconut", style = MaterialTheme.typography.labelLarge)
+                Text("Unlock Lemon", style = MaterialTheme.typography.labelLarge)
             }
         }
     }

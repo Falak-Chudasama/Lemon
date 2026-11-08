@@ -24,11 +24,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -61,12 +59,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import com.coconut.data.DomainChangeOperation
 import com.coconut.data.DomainChangeRequestEntity
 import com.coconut.data.DomainRuleEntity
-import com.coconut.ui.CoconutColors
+import com.coconut.ui.LemonColors
 import com.coconut.ui.MainViewModel
 import com.coconut.ui.components.GlassStatusBadge
 
@@ -101,15 +98,14 @@ fun DnsScreen(viewModel: MainViewModel) {
         else currentRules.filter { it.domain.contains(state.domainFilterQuery, ignoreCase = true) }
     }
 
-    // Single LazyColumn full-page scrolling
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 1. Header
+        // 1. Screen Header
         item(key = "dns_header") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -132,12 +128,12 @@ fun DnsScreen(viewModel: MainViewModel) {
 
                 GlassStatusBadge(
                     text = if (state.isVpnRunning) "Protected" else "Inactive",
-                    statusColor = if (state.isVpnRunning) CoconutColors.SuccessLight else CoconutColors.TextSecondaryLight
+                    statusColor = if (state.isVpnRunning) LemonColors.PrimaryGreenLight else LemonColors.TextSecondaryLight
                 )
             }
         }
 
-        // 2. Master Protection Switch Card
+        // 2. Master DNS Filtering Switch Card
         item(key = "master_dns_card") {
             Surface(
                 shape = RoundedCornerShape(20.dp),
@@ -162,9 +158,9 @@ fun DnsScreen(viewModel: MainViewModel) {
                         )
                         if (state.isInsideNightSchedule) {
                             Text(
-                                text = "Locked: Night schedule active (23:00 – 06:00)",
+                                text = "Locked: Night schedule active (11:00 PM – 6:00 AM)",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = CoconutColors.WarningLight,
+                                color = LemonColors.WarningLight,
                                 fontWeight = FontWeight.Medium
                             )
                         } else {
@@ -176,7 +172,7 @@ fun DnsScreen(viewModel: MainViewModel) {
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
                     Switch(
                         checked = state.isVpnRunning,
@@ -195,17 +191,16 @@ fun DnsScreen(viewModel: MainViewModel) {
                         enabled = !state.isInsideNightSchedule,
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
-                            checkedTrackColor = CoconutColors.CocoaPrimary
+                            checkedTrackColor = MaterialTheme.colorScheme.primary
                         )
                     )
                 }
             }
         }
 
-        // 3. Night Schedule Card (23:00 - 06:00)
-        item(key = "night_schedule_card") {
-            val schedule = state.dnsSchedule
-            val scheduleEnabled = schedule?.enabled ?: true
+        // 3. Permanent Daily DNS Protection Schedule Card (11:00 PM – 6:00 AM)
+        item(key = "daily_dns_schedule_card") {
+            val isInside = state.isInsideNightSchedule
 
             Surface(
                 shape = RoundedCornerShape(20.dp),
@@ -225,36 +220,38 @@ fun DnsScreen(viewModel: MainViewModel) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Schedule,
-                                contentDescription = "Schedule",
-                                tint = CoconutColors.CocoaPrimary,
+                                contentDescription = "Daily Protection",
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Night Schedule",
+                                text = "Daily DNS Protection",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Daily 23:00 – 06:00 (controls locked)",
+                            text = "11:00 PM – 6:00 AM",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Repeats every day.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
-                    Switch(
-                        checked = scheduleEnabled,
-                        onCheckedChange = { enabled ->
-                            viewModel.setScheduleEnabled(enabled)
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = CoconutColors.CocoaPrimary
-                        )
+                    GlassStatusBadge(
+                        text = if (isInside) "Active" else "Scheduled",
+                        statusColor = if (isInside) LemonColors.PrimaryGreenLight else MaterialTheme.colorScheme.primary,
+                        showDot = true
                     )
                 }
             }
@@ -277,7 +274,7 @@ fun DnsScreen(viewModel: MainViewModel) {
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // Feed 1: Threat Intelligence (TIF Mini)
                     FeedToggleRow(
@@ -287,7 +284,7 @@ fun DnsScreen(viewModel: MainViewModel) {
                         onCheckedChange = { viewModel.updateDnsConfiguration(blockThreats = it) }
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Feed 2: Adult Content (NSFW)
                     FeedToggleRow(
@@ -297,7 +294,7 @@ fun DnsScreen(viewModel: MainViewModel) {
                         onCheckedChange = { viewModel.updateDnsConfiguration(blockAdultContent = it) }
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Feed 3: Ads & Trackers (Multi PRO Mini)
                     FeedToggleRow(
@@ -316,7 +313,7 @@ fun DnsScreen(viewModel: MainViewModel) {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, CoconutColors.WarningLight.copy(alpha = 0.3f)),
+                    border = BorderStroke(1.dp, LemonColors.WarningLight.copy(alpha = 0.35f)),
                     shadowElevation = 0.5.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -334,10 +331,10 @@ fun DnsScreen(viewModel: MainViewModel) {
                             )
                             GlassStatusBadge(
                                 text = "${state.pendingDomainRequests.size} queued",
-                                statusColor = CoconutColors.WarningLight
+                                statusColor = LemonColors.WarningLight
                             )
                         }
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         state.pendingDomainRequests.forEach { request ->
                             PendingRequestRow(
@@ -351,7 +348,7 @@ fun DnsScreen(viewModel: MainViewModel) {
             }
         }
 
-        // 6. Custom Domains Section Header
+        // 6. Custom Rules Section Header & Add Domain
         item(key = "custom_domains_header") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -369,8 +366,8 @@ fun DnsScreen(viewModel: MainViewModel) {
                     onClick = { showAddDomainDialog = true },
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CoconutColors.CocoaPrimary,
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     ),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                 ) {
@@ -389,14 +386,14 @@ fun DnsScreen(viewModel: MainViewModel) {
         item(key = "domain_tabs") {
             TabRow(
                 selectedTabIndex = if (state.selectedRuleTab == "BLOCK") 0 else 1,
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                 indicator = { tabPositions ->
                     TabRowDefaults.SecondaryIndicator(
                         Modifier.tabIndicatorOffset(tabPositions[if (state.selectedRuleTab == "BLOCK") 0 else 1]),
-                        color = CoconutColors.CocoaPrimary
+                        color = MaterialTheme.colorScheme.primary
                     )
                 },
-                modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                modifier = Modifier.clip(RoundedCornerShape(14.dp))
             ) {
                 Tab(
                     selected = state.selectedRuleTab == "BLOCK",
@@ -405,7 +402,8 @@ fun DnsScreen(viewModel: MainViewModel) {
                         Text(
                             text = "Blocklist (${blockedRules.size})",
                             style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = if (state.selectedRuleTab == "BLOCK") MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 )
@@ -416,7 +414,8 @@ fun DnsScreen(viewModel: MainViewModel) {
                         Text(
                             text = "Allowlist (${allowedRules.size})",
                             style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = if (state.selectedRuleTab == "ALLOW") MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 )
@@ -449,10 +448,10 @@ fun DnsScreen(viewModel: MainViewModel) {
                     }
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
                     focusedContainerColor = MaterialTheme.colorScheme.surface,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surface
                 )
@@ -515,9 +514,9 @@ fun DnsScreen(viewModel: MainViewModel) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         text = if (state.selectedRuleTab == "BLOCK")
-                            "Biometric required. Takes effect immediately."
+                            "Biometric verification required. Takes effect immediately."
                         else
-                            "Biometric required. Exact 30-day delay applies before allowing.",
+                            "Biometric verification required. 30-day delay applies before allowing.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -543,7 +542,11 @@ fun DnsScreen(viewModel: MainViewModel) {
                         )
                         Switch(
                             checked = isBulkInput,
-                            onCheckedChange = { isBulkInput = it }
+                            onCheckedChange = { isBulkInput = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary
+                            )
                         )
                     }
                 }
@@ -568,8 +571,8 @@ fun DnsScreen(viewModel: MainViewModel) {
                     },
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CoconutColors.CocoaPrimary,
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
                     Text("Save")
@@ -620,7 +623,7 @@ private fun FeedToggleRow(
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = CoconutColors.CocoaPrimary
+                checkedTrackColor = MaterialTheme.colorScheme.primary
             )
         )
     }
@@ -648,7 +651,7 @@ private fun PendingRequestRow(
 
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -670,7 +673,7 @@ private fun PendingRequestRow(
                 Text(
                     text = "Waiting: $countdownText",
                     style = MaterialTheme.typography.bodySmall,
-                    color = CoconutColors.WarningLight,
+                    color = LemonColors.WarningLight,
                     fontWeight = FontWeight.Medium
                 )
             }

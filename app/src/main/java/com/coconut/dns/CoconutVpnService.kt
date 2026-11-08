@@ -160,7 +160,7 @@ class CoconutVpnService : VpnService() {
             // Narrow routes: only route virtual DNS endpoints (10.255.0.2 and fd00::2)
             // DO NOT route 0.0.0.0/0 or ::/0!
             val builder = Builder()
-                .setSession("Coconut Local DNS")
+                .setSession("Lemon Local DNS")
                 .setMtu(1500)
                 .addAddress("10.255.0.1", 32)
                 .addDnsServer("10.255.0.2")
@@ -632,7 +632,7 @@ class CoconutVpnService : VpnService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Coconut Local DNS",
+                "Lemon Local DNS",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Shows active local DNS filtering status"
@@ -653,7 +653,7 @@ class CoconutVpnService : VpnService() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Coconut Local DNS")
+            .setContentTitle("Lemon Local DNS")
             .setContentText("Local domain filtering active on-device")
             .setSmallIcon(R.drawable.ic_app_icon)
             .setContentIntent(pendingIntent)

@@ -24,7 +24,7 @@ android {
         targetSdk = 36
         versionCode = 3
         versionName = "2.0.0"
-        manifestPlaceholders["appLabel"] = "Coconut"
+        manifestPlaceholders["appLabel"] = "Lemon"
     }
 
     signingConfigs {
@@ -72,7 +72,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")
-            manifestPlaceholders["appLabel"] = "Coconut"
+            manifestPlaceholders["appLabel"] = "Lemon"
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -80,7 +80,7 @@ android {
         }
         debug {
             applicationIdSuffix = ".debug"
-            manifestPlaceholders["appLabel"] = "Coconut (Debug)"
+            manifestPlaceholders["appLabel"] = "Lemon (Debug)"
             isDebuggable = true
         }
     }
@@ -107,9 +107,14 @@ android {
 }
 
 kapt {
+    correctErrorTypes = true
     arguments {
         arg("room.schemaLocation", "$projectDir/schemas")
     }
+}
+
+tasks.matching { it.name.startsWith("kapt") && it.name.contains("UnitTest") }.configureEach {
+    enabled = false
 }
 
 dependencies {
@@ -136,4 +141,5 @@ dependencies {
     kapt("androidx.room:room-compiler:2.6.1")
 
     implementation("androidx.work:work-runtime-ktx:2.9.1")
+    testImplementation("junit:junit:4.13.2")
 }

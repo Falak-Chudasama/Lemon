@@ -232,6 +232,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         AppLockManager.lockSession()
     }
 
+    fun lockLemon() {
+        AppLockManager.lockSession()
+    }
+
     fun toggleAppLockEnabled(enabled: Boolean) {
         repo.appLockManager.isAppLockEnabled = enabled
         _state.update { it.copy(isAppLockEnabled = enabled) }

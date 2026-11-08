@@ -3,10 +3,9 @@ package com.coconut.ui.screens
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
-import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -52,10 +51,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.coconut.R
 import com.coconut.ui.AppThemeMode
-import com.coconut.ui.CoconutColors
+import com.coconut.ui.LemonColors
 import com.coconut.ui.MainViewModel
 import com.coconut.ui.ThemePreferences
 import com.coconut.ui.components.GlassStatusBadge
@@ -126,20 +127,20 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             onCheckedChange = viewModel::toggleAppLockEnabled,
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
-                                checkedTrackColor = CoconutColors.CocoaPrimary
+                                checkedTrackColor = MaterialTheme.colorScheme.primary
                             )
                         )
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Lock Coconut Now Button
+                    // Lock Lemon Now Button
                     Button(
-                        onClick = viewModel::lockCoconut,
+                        onClick = viewModel::lockLemon,
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = CoconutColors.CocoaPrimary,
-                            contentColor = Color.White
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(vertical = 12.dp)
@@ -150,34 +151,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Lock Coconut", style = MaterialTheme.typography.labelMedium)
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Device Admin Status
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Text(
-                                text = "Device Admin",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Removal protection friction",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        GlassStatusBadge(
-                            text = "Active",
-                            statusColor = CoconutColors.SuccessLight
-                        )
+                        Text("Lock Lemon", style = MaterialTheme.typography.labelMedium)
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
@@ -203,7 +177,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         }
                         GlassStatusBadge(
                             text = if (state.isAccessibilityGranted) "Active" else "Inactive",
-                            statusColor = if (state.isAccessibilityGranted) CoconutColors.SuccessLight else CoconutColors.ErrorLight
+                            statusColor = if (state.isAccessibilityGranted) LemonColors.PrimaryGreenLight else LemonColors.ErrorLight
                         )
                     }
                 }
@@ -248,8 +222,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
                                 label = { Text(label, style = MaterialTheme.typography.labelSmall) },
                                 shape = RoundedCornerShape(12.dp),
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = CoconutColors.CocoaPrimary,
-                                    selectedLabelColor = Color.White
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             )
                         }
@@ -295,7 +269,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             onCheckedChange = { viewModel.updateDnsConfiguration(wifiOnly = it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
-                                checkedTrackColor = CoconutColors.CocoaPrimary
+                                checkedTrackColor = MaterialTheme.colorScheme.primary
                             )
                         )
                     }
@@ -312,7 +286,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                                 scope.launch {
                                     val text = viewModel.exportRules()
                                     val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    cm.setPrimaryClip(ClipData.newPlainText("Coconut Rules", text))
+                                    cm.setPrimaryClip(ClipData.newPlainText("Lemon Rules", text))
                                     Toast.makeText(context, "Rules copied to clipboard", Toast.LENGTH_SHORT).show()
                                 }
                             },
@@ -343,27 +317,38 @@ fun SettingsScreen(viewModel: MainViewModel) {
         item(key = "app_details_section") {
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Text(
-                        text = "Coconut",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                Row(
+                    modifier = Modifier.padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_lemon_mark),
+                        contentDescription = "Lemon",
+                        modifier = Modifier.size(44.dp)
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Version 2.0.0 (3) • Target Android 16 (API 36)",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Local-first self-control. Zero remote telemetry.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text(
+                            text = "Lemon",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Version 2.0.0 (3) • Target Android 16 (API 36)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "Local-first self-control. Zero remote telemetry.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
@@ -412,8 +397,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     },
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CoconutColors.CocoaPrimary,
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
                     Text("Import")
@@ -439,7 +424,7 @@ private fun SectionHeader(title: String, icon: androidx.compose.ui.graphics.vect
         Icon(
             imageVector = icon,
             contentDescription = title,
-            tint = CoconutColors.CocoaPrimary,
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(18.dp)
         )
         Spacer(modifier = Modifier.width(6.dp))

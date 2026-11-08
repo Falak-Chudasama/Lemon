@@ -29,7 +29,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.coconut.R
 
 class BlockedAppActivity : ComponentActivity() {
@@ -70,8 +69,8 @@ class BlockedAppActivity : ComponentActivity() {
                             verticalArrangement = Arrangement.Center
                         ) {
                             Image(
-                                painter = painterResource(id = R.drawable.ic_coconut_logo),
-                                contentDescription = "Coconut Logo",
+                                painter = painterResource(id = R.drawable.ic_lemon_mark),
+                                contentDescription = "Lemon Logo",
                                 modifier = Modifier.size(64.dp)
                             )
 
@@ -87,7 +86,7 @@ class BlockedAppActivity : ComponentActivity() {
                             Spacer(modifier = Modifier.height(8.dp))
 
                             Text(
-                                text = "$appLabel is currently restricted by Coconut.",
+                                text = "$appLabel is currently restricted by Lemon.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -112,13 +111,13 @@ class BlockedAppActivity : ComponentActivity() {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(48.dp)
-                            ) {
-                                Text(
-                                    text = "Return Home",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
+                                ) {
+                                    Text(
+                                        text = "Return Home",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
                         }
                     }
                 }

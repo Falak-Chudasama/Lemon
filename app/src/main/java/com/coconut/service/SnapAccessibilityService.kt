@@ -85,7 +85,7 @@ class SnapAccessibilityService : AccessibilityService() {
         val eventPackage = event.packageName?.toString() ?: return
         val myPackage = applicationContext.packageName
 
-        // Never self-block Coconut
+        // Never self-block Lemon
         if (eventPackage == myPackage) {
             removeOverlayIfPresent()
             return
@@ -146,7 +146,7 @@ class SnapAccessibilityService : AccessibilityService() {
         val appLabel = getAppLabel(packageName)
         val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_app_icon)
-            .setContentTitle("Coconut Snap")
+            .setContentTitle("Lemon Snap")
             .setContentText("$appLabel is snapped and can't be launched.")
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_STATUS)

@@ -1,15 +1,15 @@
 <resources>
-    <string name="app_name">Coconut</string>
-    <string name="device_admin_description">Coconut legacy Device Administrator component preserved for compatibility.</string>
-    <string name="accessibility_service_description">Coconut uses Accessibility to detect when user-selected distracting apps are launched, immediately returning home and posting a status notification. It does not read screen content or collect personal data.</string>
-    <string name="vpn_service_description">Coconut Local DNS filters domain queries locally on device without external tracking.</string>
+    <string name="app_name">Lemon</string>
+    <string name="device_admin_description">Lemon component preserved for compatibility.</string>
+    <string name="accessibility_service_description">Lemon uses Accessibility to detect when user-selected distracting apps are launched, immediately returning home and posting a status notification. It does not read screen content or collect personal data.</string>
+    <string name="vpn_service_description">Lemon Local DNS filters domain queries locally on device without external tracking.</string>
 
     <!-- Prominent Accessibility Disclosure Strings -->
     <string name="accessibility_disclosure_title">Accessibility Service Disclosure</string>
-    <string name="accessibility_disclosure_summary">Coconut requires the Accessibility Service API to detect when you open applications you have explicitly chosen to block (Snap) and prevent their use.</string>
+    <string name="accessibility_disclosure_summary">Lemon requires the Accessibility Service API to detect when you open applications you have explicitly chosen to block (Snap) and prevent their use.</string>
     <string name="accessibility_disclosure_data_observed">Observes foreground application transitions (package names) solely to determine if a launched app is on your blocked list.</string>
-    <string name="accessibility_disclosure_data_not_collected">Coconut NEVER reads your screen content, text, messages, passwords, or personal data. It does not record keystrokes or collect usage history, and zero data leaves your device.</string>
-    <string name="accessibility_disclosure_action_taken">When a blocked app enters the foreground, Coconut performs the Home global action and posts a rate-limited status notification.</string>
+    <string name="accessibility_disclosure_data_not_collected">Lemon NEVER reads your screen content, text, messages, passwords, or personal data. It does not record keystrokes or collect usage history, and zero data leaves your device.</string>
+    <string name="accessibility_disclosure_action_taken">When a blocked app enters the foreground, Lemon performs the Home global action and posts a rate-limited status notification.</string>
     <string name="accessibility_disclosure_consent_btn">Agree &amp; Continue</string>
     <string name="accessibility_disclosure_decline_btn">Not Now</string>
 </resources>

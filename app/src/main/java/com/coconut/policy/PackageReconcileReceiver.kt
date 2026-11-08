@@ -41,7 +41,7 @@ class PackageReconcileReceiver : BroadcastReceiver() {
                             SecurityAuditEventEntity(
                                 eventType = "UPDATE_PRESERVED",
                                 target = appContext.packageName,
-                                details = "Coconut in-place application update verified. Snap records preserved.",
+                                details = "Lemon in-place application update verified. Snap records preserved.",
                                 severity = "INFO"
                             )
                         )
