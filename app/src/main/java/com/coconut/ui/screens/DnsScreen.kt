@@ -6,43 +6,44 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -57,15 +58,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import com.coconut.data.DomainChangeOperation
 import com.coconut.data.DomainChangeRequestEntity
 import com.coconut.data.DomainRuleEntity
-import com.coconut.ui.LemonColors
+import com.coconut.ui.LemonTheme
 import com.coconut.ui.MainViewModel
-import com.coconut.ui.components.GlassStatusBadge
+import com.coconut.ui.components.LemonBadge
+import com.coconut.ui.components.LemonBadgeStyle
+import com.coconut.ui.components.LemonEmptyState
+import com.coconut.ui.components.LemonSearchField
+import com.coconut.ui.components.LemonSegmentItem
+import com.coconut.ui.components.LemonSegmentedControl
+import com.coconut.ui.components.LemonSwitch
 
 @Composable
 fun DnsScreen(viewModel: MainViewModel) {
@@ -98,14 +108,26 @@ fun DnsScreen(viewModel: MainViewModel) {
         else currentRules.filter { it.domain.contains(state.domainFilterQuery, ignoreCase = true) }
     }
 
+    // Determine authoritative high-level status
+    val (statusLabel, statusStyle) = when {
+        state.isVpnRunning -> "Protected" to LemonBadgeStyle.SUCCESS
+        state.isInsideNightSchedule -> "Scheduled" to LemonBadgeStyle.SCHEDULED
+        else -> "Off" to LemonBadgeStyle.INACTIVE
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp),
+        contentPadding = PaddingValues(top = 20.dp, bottom = 100.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 1. Screen Header
+        // Status bar top spacing
+        item(key = "status_bar_spacing") {
+            Spacer(modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars))
+        }
+
+        // 1. Page Header with Single Clear Status Hierarchy
         item(key = "dns_header") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -114,21 +136,27 @@ fun DnsScreen(viewModel: MainViewModel) {
             ) {
                 Column {
                     Text(
-                        text = "Content Shield",
-                        style = MaterialTheme.typography.displayMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
+                        text = "DNS Protection",
+                        style = LemonTheme.typography.displayLarge.copy(
+                            fontSize = 34.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = LemonTheme.colors.textPrimary
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = if (state.isVpnRunning) "DNS active" else "DNS inactive",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = if (state.isVpnRunning) "Encrypted local loopback active"
+                        else if (state.isInsideNightSchedule) "Enforced by nightly schedule"
+                        else "Protection is currently disabled",
+                        style = LemonTheme.typography.bodyMedium.copy(fontSize = 15.sp),
+                        color = LemonTheme.colors.textSecondary
                     )
                 }
 
-                GlassStatusBadge(
-                    text = if (state.isVpnRunning) "Protected" else "Inactive",
-                    statusColor = if (state.isVpnRunning) LemonColors.PrimaryGreenLight else LemonColors.TextSecondaryLight
+                LemonBadge(
+                    text = statusLabel,
+                    style = statusStyle,
+                    showDot = true
                 )
             }
         }
@@ -136,45 +164,49 @@ fun DnsScreen(viewModel: MainViewModel) {
         // 2. Master DNS Filtering Switch Card
         item(key = "master_dns_card") {
             Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-                shadowElevation = 0.5.dp,
+                shape = LemonTheme.shapes.card,
+                color = LemonTheme.colors.cardBackground,
+                border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(18.dp),
+                        .padding(20.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "DNS Filtering",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            style = LemonTheme.typography.titleMedium.copy(
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = LemonTheme.colors.textPrimary
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
                         if (state.isInsideNightSchedule) {
                             Text(
                                 text = "Locked: Night schedule active (11:00 PM – 6:00 AM)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = LemonColors.WarningLight,
-                                fontWeight = FontWeight.Medium
+                                style = LemonTheme.typography.bodySmall.copy(
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                color = LemonTheme.colors.textAccent
                             )
                         } else {
                             Text(
-                                text = "Local encrypted DNS loopback",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = "Filters domain traffic entirely on device",
+                                style = LemonTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                                color = LemonTheme.colors.textSecondary
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
 
-                    Switch(
+                    LemonSwitch(
                         checked = state.isVpnRunning,
                         onCheckedChange = { checked ->
                             if (checked) {
@@ -188,11 +220,7 @@ fun DnsScreen(viewModel: MainViewModel) {
                                 viewModel.toggleDns(false)
                             }
                         },
-                        enabled = !state.isInsideNightSchedule,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = MaterialTheme.colorScheme.primary
-                        )
+                        enabled = !state.isInsideNightSchedule
                     )
                 }
             }
@@ -203,54 +231,66 @@ fun DnsScreen(viewModel: MainViewModel) {
             val isInside = state.isInsideNightSchedule
 
             Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-                shadowElevation = 0.5.dp,
+                shape = LemonTheme.shapes.card,
+                color = LemonTheme.colors.cardBackground,
+                border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(18.dp),
+                        .padding(20.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Schedule,
-                                contentDescription = "Daily Protection",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(LemonTheme.colors.primaryAccent.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Schedule,
+                                    contentDescription = null,
+                                    tint = LemonTheme.colors.textAccent,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = "Daily DNS Protection",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                style = LemonTheme.typography.titleMedium.copy(
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = LemonTheme.colors.textPrimary
                             )
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "11:00 PM – 6:00 AM",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            style = LemonTheme.typography.bodyLarge.copy(
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = LemonTheme.colors.textPrimary
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Repeats every day.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "Repeats every day. Protection cannot be paused or edited.",
+                            style = LemonTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                            color = LemonTheme.colors.textSecondary
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
 
-                    GlassStatusBadge(
+                    LemonBadge(
                         text = if (isInside) "Active" else "Scheduled",
-                        statusColor = if (isInside) LemonColors.PrimaryGreenLight else MaterialTheme.colorScheme.primary,
+                        style = if (isInside) LemonBadgeStyle.SUCCESS else LemonBadgeStyle.SCHEDULED,
                         showDot = true
                     )
                 }
@@ -260,46 +300,63 @@ fun DnsScreen(viewModel: MainViewModel) {
         // 4. Built-in Feeds Card (HaGeZi Feeds: TIF Mini, NSFW, Multi PRO Mini)
         item(key = "builtin_feeds_card") {
             val config = state.dnsConfig
+
             Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-                shadowElevation = 0.5.dp,
+                shape = LemonTheme.shapes.card,
+                color = LemonTheme.colors.cardBackground,
+                border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(18.dp)) {
+                Column(modifier = Modifier.padding(20.dp)) {
                     Text(
                         text = "Built-in Protection",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        style = LemonTheme.typography.titleMedium.copy(
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = LemonTheme.colors.textPrimary
                     )
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Comprehensive feeds maintained by HaGeZi",
+                        style = LemonTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                        color = LemonTheme.colors.textSecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     // Feed 1: Threat Intelligence (TIF Mini)
-                    FeedToggleRow(
+                    LemonFeedRow(
                         title = "Threat Intelligence",
-                        subtitle = "HaGeZi TIF Mini (189,700 rules)",
+                        subtitle = "HaGeZi TIF Mini • Malware & malicious C2",
                         checked = config?.blockThreats ?: true,
                         onCheckedChange = { viewModel.updateDnsConfiguration(blockThreats = it) }
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        thickness = 1.dp,
+                        color = LemonTheme.colors.separator
+                    )
 
                     // Feed 2: Adult Content (NSFW)
-                    FeedToggleRow(
+                    LemonFeedRow(
                         title = "Adult Content",
-                        subtitle = "HaGeZi NSFW (77,921 rules)",
+                        subtitle = "HaGeZi NSFW • Pornography & adult sites",
                         checked = config?.blockAdultContent ?: false,
                         onCheckedChange = { viewModel.updateDnsConfiguration(blockAdultContent = it) }
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        thickness = 1.dp,
+                        color = LemonTheme.colors.separator
+                    )
 
                     // Feed 3: Ads & Trackers (Multi PRO Mini)
-                    FeedToggleRow(
+                    LemonFeedRow(
                         title = "Ads & Trackers",
-                        subtitle = "HaGeZi Multi PRO Mini (164,028 rules)",
+                        subtitle = "HaGeZi Multi PRO Mini • Behavioral trackers & ads",
                         checked = config?.blockAdsTrackers ?: false,
                         onCheckedChange = { viewModel.updateDnsConfiguration(blockAds = it) }
                     )
@@ -311,37 +368,51 @@ fun DnsScreen(viewModel: MainViewModel) {
         if (state.pendingDomainRequests.isNotEmpty()) {
             item(key = "pending_changes_card") {
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, LemonColors.WarningLight.copy(alpha = 0.35f)),
-                    shadowElevation = 0.5.dp,
+                    shape = LemonTheme.shapes.card,
+                    color = LemonTheme.colors.warningContainer,
+                    border = BorderStroke(1.dp, LemonTheme.colors.warning.copy(alpha = 0.35f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(18.dp)) {
+                    Column(modifier = Modifier.padding(20.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "Pending Changes",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            GlassStatusBadge(
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.HourglassEmpty,
+                                    contentDescription = null,
+                                    tint = LemonTheme.colors.warning,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Pending Changes",
+                                    style = LemonTheme.typography.titleMedium.copy(
+                                        fontSize = 17.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = LemonTheme.colors.onWarningContainer
+                                )
+                            }
+                            LemonBadge(
                                 text = "${state.pendingDomainRequests.size} queued",
-                                statusColor = LemonColors.WarningLight
+                                style = LemonBadgeStyle.WARNING,
+                                showDot = false
                             )
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
 
-                        state.pendingDomainRequests.forEach { request ->
-                            PendingRequestRow(
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        state.pendingDomainRequests.forEachIndexed { index, request ->
+                            LemonPendingRequestRow(
                                 request = request,
                                 onCancel = { viewModel.cancelPendingRequest(request.id) }
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            if (index < state.pendingDomainRequests.lastIndex) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
                         }
                     }
                 }
@@ -357,131 +428,96 @@ fun DnsScreen(viewModel: MainViewModel) {
             ) {
                 Text(
                     text = "Custom Rules",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    style = LemonTheme.typography.titleLarge.copy(
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = LemonTheme.colors.textPrimary
                 )
 
                 Button(
                     onClick = { showAddDomainDialog = true },
-                    shape = RoundedCornerShape(12.dp),
+                    shape = LemonTheme.shapes.button,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                        containerColor = LemonTheme.colors.primaryAccent,
+                        contentColor = LemonTheme.colors.onPrimaryAccent
                     ),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = "Add",
                         modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Add domain", style = MaterialTheme.typography.labelMedium)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Add domain",
+                        style = LemonTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
                 }
             }
         }
 
-        // 7. Tabs: Blocklist / Allowlist
+        // 7. Tabs: Blocklist / Allowlist via Segmented Control
         item(key = "domain_tabs") {
-            TabRow(
-                selectedTabIndex = if (state.selectedRuleTab == "BLOCK") 0 else 1,
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                indicator = { tabPositions ->
-                    TabRowDefaults.SecondaryIndicator(
-                        Modifier.tabIndicatorOffset(tabPositions[if (state.selectedRuleTab == "BLOCK") 0 else 1]),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                },
-                modifier = Modifier.clip(RoundedCornerShape(14.dp))
-            ) {
-                Tab(
-                    selected = state.selectedRuleTab == "BLOCK",
-                    onClick = { viewModel.setSelectedRuleTab("BLOCK") },
-                    text = {
-                        Text(
-                            text = "Blocklist (${blockedRules.size})",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (state.selectedRuleTab == "BLOCK") MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+            val tabs = listOf(
+                LemonSegmentItem(
+                    id = "BLOCK",
+                    title = "Blocklist",
+                    count = blockedRules.size
+                ),
+                LemonSegmentItem(
+                    id = "ALLOW",
+                    title = "Allowlist",
+                    count = allowedRules.size
                 )
-                Tab(
-                    selected = state.selectedRuleTab == "ALLOW",
-                    onClick = { viewModel.setSelectedRuleTab("ALLOW") },
-                    text = {
-                        Text(
-                            text = "Allowlist (${allowedRules.size})",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (state.selectedRuleTab == "ALLOW") MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                )
-            }
+            )
+            LemonSegmentedControl(
+                items = tabs,
+                selectedId = state.selectedRuleTab,
+                onItemSelected = { viewModel.setSelectedRuleTab(it) }
+            )
         }
 
         // 8. Domain Search Field
         item(key = "domain_search") {
-            OutlinedTextField(
-                value = state.domainFilterQuery,
-                onValueChange = viewModel::setDomainFilterQuery,
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Filter domains...", style = MaterialTheme.typography.bodyMedium) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = MaterialTheme.colorScheme.outline
-                    )
-                },
-                trailingIcon = {
-                    if (state.domainFilterQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.setDomainFilterQuery("") }) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "Clear",
-                                tint = MaterialTheme.colorScheme.outline
-                            )
-                        }
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                )
+            LemonSearchField(
+                query = state.domainFilterQuery,
+                onQueryChange = viewModel::setDomainFilterQuery,
+                placeholder = "Filter domain rules..."
             )
         }
 
-        // 9. Domain Rows
+        // 9. Domain Rows or Empty State
         if (filteredRules.isEmpty()) {
             item(key = "empty_domains") {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (state.selectedRuleTab == "BLOCK") "No blocked domains" else "No allowed domains",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                LemonEmptyState(
+                    icon = Icons.Default.SearchOff,
+                    title = if (state.selectedRuleTab == "BLOCK") "No blocked domains" else "No allowed domains",
+                    description = if (state.domainFilterQuery.isNotEmpty())
+                        "No rules match '${state.domainFilterQuery}'."
+                    else
+                        "You haven't added any custom domains to this list yet.",
+                    actionLabel = if (state.domainFilterQuery.isNotEmpty()) "Clear filter" else "Add domain",
+                    onActionClick = {
+                        if (state.domainFilterQuery.isNotEmpty()) {
+                            viewModel.setDomainFilterQuery("")
+                        } else {
+                            showAddDomainDialog = true
+                        }
+                    }
+                )
             }
         } else {
             items(
                 items = filteredRules,
                 key = { it.domain }
             ) { rule ->
-                DomainRuleRow(
+                LemonDomainRuleRow(
                     rule = rule,
-                    onDelete = {
+                    onRemove = {
                         if (activity != null) {
                             if (rule.ruleType == "BLOCK") {
                                 viewModel.requestRemoveBlocklistDomain(activity, rule.domain)
@@ -497,28 +533,36 @@ fun DnsScreen(viewModel: MainViewModel) {
 
     // Add Domain Dialog
     if (showAddDomainDialog) {
+        val isBlock = state.selectedRuleTab == "BLOCK"
         AlertDialog(
             onDismissRequest = {
                 showAddDomainDialog = false
                 domainInputText = ""
             },
-            shape = RoundedCornerShape(24.dp),
+            shape = LemonTheme.shapes.dialog,
+            containerColor = LemonTheme.colors.cardBackground,
             title = {
                 Text(
-                    text = if (state.selectedRuleTab == "BLOCK") "Add to Blocklist" else "Add to Allowlist",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    text = if (isBlock) "Add to Blocklist" else "Add to Allowlist",
+                    style = LemonTheme.typography.titleLarge.copy(
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = LemonTheme.colors.textPrimary
                 )
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = if (state.selectedRuleTab == "BLOCK")
+                        text = if (isBlock)
                             "Biometric verification required. Takes effect immediately."
                         else
-                            "Biometric verification required. 30-day delay applies before allowing.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                            "Biometric verification required. 30-day delay applies before domain is allowed.",
+                        style = LemonTheme.typography.bodySmall.copy(
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp
+                        ),
+                        color = LemonTheme.colors.textSecondary
                     )
 
                     OutlinedTextField(
@@ -528,25 +572,37 @@ fun DnsScreen(viewModel: MainViewModel) {
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = !isBulkInput,
                         maxLines = if (isBulkInput) 6 else 1,
-                        shape = RoundedCornerShape(14.dp)
+                        shape = LemonTheme.shapes.button,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Uri,
+                            autoCorrectEnabled = false,
+                            imeAction = if (isBulkInput) ImeAction.Default else ImeAction.Done
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = LemonTheme.colors.primaryAccent,
+                            unfocusedBorderColor = LemonTheme.colors.cardBorder,
+                            focusedContainerColor = LemonTheme.colors.cardSecondaryBackground,
+                            unfocusedContainerColor = LemonTheme.colors.cardSecondaryBackground,
+                            focusedTextColor = LemonTheme.colors.textPrimary,
+                            unfocusedTextColor = LemonTheme.colors.textPrimary
+                        )
                     )
 
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Multiple lines (bulk)",
-                            style = MaterialTheme.typography.bodySmall
+                            text = "Multiple lines (bulk import)",
+                            style = LemonTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                            color = LemonTheme.colors.textPrimary
                         )
-                        Switch(
+                        LemonSwitch(
                             checked = isBulkInput,
-                            onCheckedChange = { isBulkInput = it },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = MaterialTheme.colorScheme.primary
-                            )
+                            onCheckedChange = { isBulkInput = it }
                         )
                     }
                 }
@@ -569,13 +625,19 @@ fun DnsScreen(viewModel: MainViewModel) {
                             domainInputText = ""
                         }
                     },
-                    shape = RoundedCornerShape(12.dp),
+                    shape = LemonTheme.shapes.button,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                        containerColor = LemonTheme.colors.primaryAccent,
+                        contentColor = LemonTheme.colors.onPrimaryAccent
+                    ),
+                    contentPadding = PaddingValues(horizontal = 22.dp, vertical = 10.dp)
                 ) {
-                    Text("Save")
+                    Text(
+                        text = "Save",
+                        style = LemonTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
                 }
             },
             dismissButton = {
@@ -583,9 +645,14 @@ fun DnsScreen(viewModel: MainViewModel) {
                     onClick = {
                         showAddDomainDialog = false
                         domainInputText = ""
-                    }
+                    },
+                    shape = LemonTheme.shapes.button
                 ) {
-                    Text("Cancel")
+                    Text(
+                        text = "Cancel",
+                        style = LemonTheme.typography.labelMedium,
+                        color = LemonTheme.colors.textSecondary
+                    )
                 }
             }
         )
@@ -593,7 +660,7 @@ fun DnsScreen(viewModel: MainViewModel) {
 }
 
 @Composable
-private fun FeedToggleRow(
+private fun LemonFeedRow(
     title: String,
     subtitle: String,
     checked: Boolean,
@@ -607,30 +674,29 @@ private fun FeedToggleRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                style = LemonTheme.typography.titleSmall.copy(
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = LemonTheme.colors.textPrimary
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = LemonTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                color = LemonTheme.colors.textSecondary
             )
         }
-        Spacer(modifier = Modifier.width(8.dp))
-        Switch(
+        Spacer(modifier = Modifier.width(16.dp))
+        LemonSwitch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = MaterialTheme.colorScheme.primary
-            )
+            onCheckedChange = onCheckedChange
         )
     }
 }
 
 @Composable
-private fun PendingRequestRow(
+private fun LemonPendingRequestRow(
     request: DomainChangeRequestEntity,
     onCancel: () -> Unit
 ) {
@@ -651,56 +717,73 @@ private fun PendingRequestRow(
 
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        color = LemonTheme.colors.cardBackground.copy(alpha = 0.85f),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = actionLabel,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = LemonTheme.typography.bodyMedium.copy(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = LemonTheme.colors.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Waiting: $countdownText",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = LemonColors.WarningLight,
-                    fontWeight = FontWeight.Medium
+                    text = "Enforces in $countdownText",
+                    style = LemonTheme.typography.bodySmall.copy(
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    color = LemonTheme.colors.textAccent
                 )
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
-            OutlinedButton(
+            Button(
                 onClick = onCancel,
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                shape = LemonTheme.shapes.button,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = LemonTheme.colors.cardSecondaryBackground,
+                    contentColor = LemonTheme.colors.textPrimary
+                ),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
             ) {
-                Text("Cancel", style = MaterialTheme.typography.labelSmall)
+                Text(
+                    text = "Cancel",
+                    style = LemonTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.SemiBold
+                    )
+                )
             }
         }
     }
 }
 
+/**
+ * Domain rule row with respectful "Remove..." action button instead of destructive immediate trash icon.
+ * Reflects that removal incurs a 30-day delay for user protection.
+ */
 @Composable
-private fun DomainRuleRow(
+private fun LemonDomainRuleRow(
     rule: DomainRuleEntity,
-    onDelete: () -> Unit
+    onRemove: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-        shadowElevation = 0.5.dp,
+        shape = LemonTheme.shapes.card,
+        color = LemonTheme.colors.cardBackground,
+        border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -713,28 +796,41 @@ private fun DomainRuleRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = rule.domain,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = LemonTheme.typography.titleSmall.copy(
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = LemonTheme.colors.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = rule.source,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
+                    text = if (rule.source.equals("CUSTOM", ignoreCase = true)) "Custom rule" else rule.source,
+                    style = LemonTheme.typography.bodySmall.copy(
+                        fontSize = 12.sp
+                    ),
+                    color = LemonTheme.colors.textSecondary
                 )
             }
 
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(36.dp)
+            Spacer(modifier = Modifier.width(10.dp))
+
+            // Subdued "Remove..." button communicating delayed security workflow
+            Button(
+                onClick = onRemove,
+                shape = LemonTheme.shapes.button,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = LemonTheme.colors.cardSecondaryBackground,
+                    contentColor = LemonTheme.colors.danger
+                ),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Remove",
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(18.dp)
+                Text(
+                    text = "Remove...",
+                    style = LemonTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.SemiBold
+                    )
                 )
             }
         }

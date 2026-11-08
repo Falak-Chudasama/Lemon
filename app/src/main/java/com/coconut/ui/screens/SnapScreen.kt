@@ -15,31 +15,36 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -59,15 +64,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import com.coconut.ui.AppIconCache
 import com.coconut.ui.InstalledApp
-import com.coconut.ui.LemonColors
+import com.coconut.ui.LemonTheme
 import com.coconut.ui.MainViewModel
-import com.coconut.ui.components.GlassStatusBadge
+import com.coconut.ui.components.LemonBadge
+import com.coconut.ui.components.LemonBadgeStyle
+import com.coconut.ui.components.LemonEmptyState
+import com.coconut.ui.components.LemonSearchField
+import com.coconut.ui.components.LemonSegmentItem
+import com.coconut.ui.components.LemonSegmentedControl
 
 @Composable
 fun SnapScreen(viewModel: MainViewModel) {
@@ -113,16 +125,25 @@ fun SnapScreen(viewModel: MainViewModel) {
     }
 
     val snappedCount = snappedPackageNames.size
-    val restrictedGrammarText = if (snappedCount == 1) "1 app restricted" else "$snappedCount apps restricted"
+    val restrictedGrammarText = when (snappedCount) {
+        0 -> "0 apps restricted"
+        1 -> "1 app restricted"
+        else -> "$snappedCount apps restricted"
+    }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(top = 20.dp, bottom = 100.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 1. Page Header
+        // Status bar top spacing
+        item(key = "status_bar_spacing") {
+            Spacer(modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars))
+        }
+
+        // 1. Page Header (Large 34sp Title + Counter)
         item(key = "header") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -132,33 +153,38 @@ fun SnapScreen(viewModel: MainViewModel) {
                 Column {
                     Text(
                         text = "The Snap",
-                        style = MaterialTheme.typography.displayMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
+                        style = LemonTheme.typography.displayLarge.copy(
+                            fontSize = 34.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = LemonTheme.colors.textPrimary
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = restrictedGrammarText,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = LemonTheme.typography.bodyMedium.copy(
+                            fontSize = 15.sp
+                        ),
+                        color = LemonTheme.colors.textSecondary
                     )
                 }
 
                 if (state.isStrictModeActive) {
-                    GlassStatusBadge(
+                    LemonBadge(
                         text = "Strict Mode",
-                        statusColor = LemonColors.WarningLight
+                        style = LemonBadgeStyle.WARNING
                     )
                 }
             }
         }
 
-        // 2. Accessibility Permission Notice
+        // 2. Accessibility Permission Notice Banner
         if (!state.isAccessibilityGranted) {
             item(key = "accessibility_card") {
                 Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f)),
+                    shape = LemonTheme.shapes.card,
+                    color = LemonTheme.colors.warningContainer,
+                    border = BorderStroke(1.dp, LemonTheme.colors.warning.copy(alpha = 0.35f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -169,99 +195,82 @@ fun SnapScreen(viewModel: MainViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Accessibility required",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = LemonTheme.colors.warning,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Accessibility required",
+                                    style = LemonTheme.typography.titleSmall.copy(
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = LemonTheme.colors.onWarningContainer
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Required to enforce app restrictions.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f)
+                                style = LemonTheme.typography.bodySmall.copy(
+                                    fontSize = 13.sp
+                                ),
+                                color = LemonTheme.colors.onWarningContainer.copy(alpha = 0.85f)
                             )
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Button(
                             onClick = { showAccessibilityDisclosure = true },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = LemonTheme.shapes.button,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error,
-                                contentColor = MaterialTheme.colorScheme.onError
+                                containerColor = LemonTheme.colors.primaryAccent,
+                                contentColor = LemonTheme.colors.onPrimaryAccent
                             ),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                         ) {
-                            Text("Enable", style = MaterialTheme.typography.labelMedium)
-                        }
-                    }
-                }
-            }
-        }
-
-        // 3. Search Field
-        item(key = "search") {
-            OutlinedTextField(
-                value = state.searchQuery,
-                onValueChange = viewModel::setSearchQuery,
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search apps...", style = MaterialTheme.typography.bodyMedium) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = MaterialTheme.colorScheme.outline
-                    )
-                },
-                trailingIcon = {
-                    if (state.searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "Clear",
-                                tint = MaterialTheme.colorScheme.outline
+                            Text(
+                                text = "Enable",
+                                style = LemonTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold
+                                )
                             )
                         }
                     }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                )
-            )
-        }
-
-        // 4. Status Filter Chips (All, Snapped, Available)
-        item(key = "status_filters") {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                val chips = listOf(
-                    "All" to state.installedApps.size,
-                    "Snapped" to snappedCount,
-                    "Available" to (state.installedApps.size - snappedCount).coerceAtLeast(0)
-                )
-                items(chips) { (label, count) ->
-                    val isSelected = selectedStatusFilter == label
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { selectedStatusFilter = label },
-                        label = { Text("$label ($count)", style = MaterialTheme.typography.labelSmall) },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    )
                 }
             }
         }
 
-        // 5. Category Filter Chips (Social, Entertainment, Games, etc.)
+        // 3. Search Field (Capsule 48dp)
+        item(key = "search") {
+            LemonSearchField(
+                query = state.searchQuery,
+                onQueryChange = viewModel::setSearchQuery,
+                placeholder = "Search installed apps..."
+            )
+        }
+
+        // 4. Status Filter Segmented Pill Control (All / Snapped / Available)
+        item(key = "status_filters") {
+            val segmentItems = listOf(
+                LemonSegmentItem(id = "All", title = "All", count = state.installedApps.size),
+                LemonSegmentItem(id = "Snapped", title = "Snapped", count = snappedCount),
+                LemonSegmentItem(
+                    id = "Available",
+                    title = "Available",
+                    count = (state.installedApps.size - snappedCount).coerceAtLeast(0)
+                )
+            )
+            LemonSegmentedControl(
+                items = segmentItems,
+                selectedId = selectedStatusFilter,
+                onItemSelected = { selectedStatusFilter = it }
+            )
+        }
+
+        // 5. Category Filter Chips (if more than 2 categories exist)
         if (availableCategories.size > 2) {
             item(key = "category_filters") {
                 LazyRow(
@@ -273,11 +282,26 @@ fun SnapScreen(viewModel: MainViewModel) {
                         FilterChip(
                             selected = isSelected,
                             onClick = { selectedCategoryFilter = cat },
-                            label = { Text(cat, style = MaterialTheme.typography.labelSmall) },
-                            shape = RoundedCornerShape(12.dp),
+                            label = {
+                                Text(
+                                    text = cat,
+                                    style = LemonTheme.typography.labelSmall.copy(
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                )
+                            },
+                            shape = RoundedCornerShape(100.dp),
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                selectedContainerColor = LemonTheme.colors.primaryAccent,
+                                selectedLabelColor = LemonTheme.colors.onPrimaryAccent,
+                                containerColor = LemonTheme.colors.cardSecondaryBackground,
+                                labelColor = LemonTheme.colors.textSecondary
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isSelected,
+                                borderColor = if (isSelected) Color.Transparent else LemonTheme.colors.cardBorder
                             )
                         )
                     }
@@ -285,23 +309,40 @@ fun SnapScreen(viewModel: MainViewModel) {
             }
         }
 
-        // 6. Application Rows
-        items(
-            items = filteredApps,
-            key = { it.packageName }
-        ) { app ->
-            val isSnapped = snappedPackageNames.contains(app.packageName)
-            UnifiedAppSnapRow(
-                app = app,
-                isSnapped = isSnapped,
-                onSnapClicked = {
-                    if (!state.isAccessibilityGranted) {
-                        showAccessibilityDisclosure = true
-                    } else if (activity != null) {
-                        viewModel.startSnapProcess(activity, app)
+        // 6. Application Rows or Empty State
+        if (filteredApps.isEmpty()) {
+            item(key = "empty_apps") {
+                LemonEmptyState(
+                    icon = Icons.Default.SearchOff,
+                    title = "No applications found",
+                    description = if (state.searchQuery.isNotEmpty())
+                        "No installed apps match '${state.searchQuery}'."
+                    else
+                        "No applications match the selected filter.",
+                    actionLabel = if (state.searchQuery.isNotEmpty()) "Clear search" else null,
+                    onActionClick = if (state.searchQuery.isNotEmpty()) {
+                        { viewModel.setSearchQuery("") }
+                    } else null
+                )
+            }
+        } else {
+            items(
+                items = filteredApps,
+                key = { it.packageName }
+            ) { app ->
+                val isSnapped = snappedPackageNames.contains(app.packageName)
+                LemonAppRow(
+                    app = app,
+                    isSnapped = isSnapped,
+                    onSnapClicked = {
+                        if (!state.isAccessibilityGranted) {
+                            showAccessibilityDisclosure = true
+                        } else if (activity != null) {
+                            viewModel.startSnapProcess(activity, app)
+                        }
                     }
-                }
-            )
+                )
+            }
         }
     }
 
@@ -310,31 +351,42 @@ fun SnapScreen(viewModel: MainViewModel) {
         val targetApp = state.pendingSnapApp!!
         AlertDialog(
             onDismissRequest = viewModel::cancelSnapConfirmation,
-            shape = RoundedCornerShape(24.dp),
+            shape = LemonTheme.shapes.dialog,
+            containerColor = LemonTheme.colors.cardBackground,
             title = {
                 Text(
                     text = "Confirm Snap",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    style = LemonTheme.typography.titleLarge.copy(
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = LemonTheme.colors.textPrimary
                 )
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
                         text = "Restrict ${targetApp.label}?",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        style = LemonTheme.typography.titleMedium.copy(
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = LemonTheme.colors.textPrimary
                     )
                     Text(
                         text = "This Snap cannot be reversed through normal Lemon controls.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.Medium
+                        style = LemonTheme.typography.bodySmall.copy(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = LemonTheme.colors.danger
                     )
                     Text(
                         text = "Type SNAP in uppercase to confirm:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = LemonTheme.typography.bodySmall.copy(
+                            fontSize = 13.sp
+                        ),
+                        color = LemonTheme.colors.textSecondary
                     )
                     OutlinedTextField(
                         value = state.typedSnapText,
@@ -342,10 +394,19 @@ fun SnapScreen(viewModel: MainViewModel) {
                         singleLine = true,
                         placeholder = { Text("SNAP") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = LemonTheme.shapes.button,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Characters,
+                            autoCorrectEnabled = false,
+                            imeAction = ImeAction.Done
+                        ),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                            focusedBorderColor = LemonTheme.colors.primaryAccent,
+                            unfocusedBorderColor = LemonTheme.colors.cardBorder,
+                            focusedContainerColor = LemonTheme.colors.cardSecondaryBackground,
+                            unfocusedContainerColor = LemonTheme.colors.cardSecondaryBackground,
+                            focusedTextColor = LemonTheme.colors.textPrimary,
+                            unfocusedTextColor = LemonTheme.colors.textPrimary
                         )
                     )
                 }
@@ -354,54 +415,92 @@ fun SnapScreen(viewModel: MainViewModel) {
                 Button(
                     onClick = viewModel::commitSnap,
                     enabled = state.typedSnapText == "SNAP",
-                    shape = RoundedCornerShape(12.dp),
+                    shape = LemonTheme.shapes.button,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                        containerColor = LemonTheme.colors.danger,
+                        contentColor = Color.White,
+                        disabledContainerColor = LemonTheme.colors.cardSecondaryBackground,
+                        disabledContentColor = LemonTheme.colors.textTertiary
+                    ),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                 ) {
-                    Text("Confirm Snap")
+                    Text(
+                        text = "Confirm Snap",
+                        style = LemonTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = viewModel::cancelSnapConfirmation) {
-                    Text("Cancel")
+                TextButton(
+                    onClick = viewModel::cancelSnapConfirmation,
+                    shape = LemonTheme.shapes.button
+                ) {
+                    Text(
+                        text = "Cancel",
+                        style = LemonTheme.typography.labelMedium,
+                        color = LemonTheme.colors.textSecondary
+                    )
                 }
             }
         )
     }
 
-    // Accessibility Disclosure Dialog
+    // Accessibility Disclosure Dialog (3 Structured Disclosure Rows)
     if (showAccessibilityDisclosure) {
         AlertDialog(
             onDismissRequest = { showAccessibilityDisclosure = false },
+            containerColor = LemonTheme.colors.cardBackground,
+            shape = LemonTheme.shapes.dialog,
             title = {
-                Text(
-                    text = "Accessibility Service Disclosure",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = null,
+                        tint = LemonTheme.colors.primaryAccent,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Accessibility Disclosure",
+                        style = LemonTheme.typography.titleLarge.copy(
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = LemonTheme.colors.textPrimary
+                    )
+                }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = "Lemon uses the AccessibilityService API strictly to detect foreground launches of apps you have snapped and return to the home screen.",
-                        style = MaterialTheme.typography.bodyMedium
+                        text = "Lemon uses the Android AccessibilityService API strictly to detect when you launch a restricted app and return home.",
+                        style = LemonTheme.typography.bodyMedium.copy(
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp
+                        ),
+                        color = LemonTheme.colors.textSecondary
                     )
-                    Text(
-                        text = "• Observes window state transitions for snapped apps only.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Row 1: Foreground transitions only
+                    DisclosurePointRow(
+                        icon = Icons.Default.Lock,
+                        text = "Detects foreground transitions of snapped apps only."
                     )
-                    Text(
-                        text = "• Does not read screen text, passwords, or messages.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+
+                    // Row 2: Never reads content
+                    DisclosurePointRow(
+                        icon = Icons.Default.VisibilityOff,
+                        text = "Never inspects screen content, text, passwords or keystrokes."
                     )
-                    Text(
-                        text = "• Zero data collected or shared off this device.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+
+                    // Row 3: Zero network collection
+                    DisclosurePointRow(
+                        icon = Icons.Default.CheckCircle,
+                        text = "Zero data is collected or transmitted off your device."
                     )
                 }
             },
@@ -412,27 +511,75 @@ fun SnapScreen(viewModel: MainViewModel) {
                         val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                         context.startActivity(intent)
                     },
-                    shape = RoundedCornerShape(12.dp),
+                    shape = LemonTheme.shapes.button,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                        containerColor = LemonTheme.colors.primaryAccent,
+                        contentColor = LemonTheme.colors.onPrimaryAccent
+                    ),
+                    contentPadding = PaddingValues(horizontal = 22.dp, vertical = 10.dp)
                 ) {
-                    Text("Continue")
+                    Text(
+                        text = "Open Settings",
+                        style = LemonTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAccessibilityDisclosure = false }) {
-                    Text("Cancel")
+                TextButton(
+                    onClick = { showAccessibilityDisclosure = false },
+                    shape = LemonTheme.shapes.button
+                ) {
+                    Text(
+                        text = "Cancel",
+                        style = LemonTheme.typography.labelMedium,
+                        color = LemonTheme.colors.textSecondary
+                    )
                 }
-            },
-            shape = RoundedCornerShape(20.dp)
+            }
         )
     }
 }
 
 @Composable
-private fun UnifiedAppSnapRow(
+private fun DisclosurePointRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(LemonTheme.colors.primaryAccent.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = LemonTheme.colors.textAccent,
+                modifier = Modifier.size(14.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = text,
+            style = LemonTheme.typography.bodySmall.copy(
+                fontSize = 13.sp,
+                lineHeight = 18.sp
+            ),
+            color = LemonTheme.colors.textPrimary
+        )
+    }
+}
+
+@Composable
+private fun LemonAppRow(
     app: InstalledApp,
     isSnapped: Boolean,
     onSnapClicked: () -> Unit
@@ -444,23 +591,11 @@ private fun UnifiedAppSnapRow(
         iconBitmap = AppIconCache.loadIcon(context, app.packageName)
     }
 
-    val cardColor = if (isSnapped) {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
-
-    val borderColor = if (isSnapped) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-    } else {
-        MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
-    }
-
     Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = cardColor,
-        border = BorderStroke(1.dp, borderColor),
-        shadowElevation = 0.5.dp,
+        shape = LemonTheme.shapes.card,
+        color = if (isSnapped) LemonTheme.colors.cardSecondaryBackground else LemonTheme.colors.cardBackground,
+        border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
+        shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -469,85 +604,84 @@ private fun UnifiedAppSnapRow(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // App Icon
+            // App Icon in 12dp squircle
             if (iconBitmap != null) {
                 Image(
                     bitmap = iconBitmap!!,
                     contentDescription = app.label,
                     modifier = Modifier
                         .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(LemonTheme.shapes.iconSquircle)
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                        .clip(LemonTheme.shapes.iconSquircle)
+                        .background(LemonTheme.colors.cardSecondaryBackground),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = app.label.take(1).uppercase(),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = LemonTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = LemonTheme.colors.textSecondary
                     )
                 }
             }
 
             Spacer(modifier = Modifier.width(14.dp))
 
-            // App Label, Category, & Package
+            // App Label & Clean Category
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = app.label,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = LemonTheme.typography.titleMedium.copy(
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = LemonTheme.colors.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = app.category,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = " • ",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                    Text(
-                        text = app.packageName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = app.category,
+                    style = LemonTheme.typography.bodySmall.copy(
+                        fontSize = 13.sp
+                    ),
+                    color = LemonTheme.colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
-            // Snapped status or Snap action button
+            // Status or Action Button (Minimum 48dp touch target)
             if (isSnapped) {
-                GlassStatusBadge(
+                LemonBadge(
                     text = "Snapped",
-                    statusColor = LemonColors.ErrorLight,
+                    style = LemonBadgeStyle.DANGER,
                     showDot = true
                 )
             } else {
                 Button(
                     onClick = onSnapClicked,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = LemonTheme.shapes.button,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                        containerColor = LemonTheme.colors.primaryAccent,
+                        contentColor = LemonTheme.colors.onPrimaryAccent
                     ),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
                 ) {
-                    Text(text = "Snap", style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        text = "Snap",
+                        style = LemonTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
                 }
             }
         }

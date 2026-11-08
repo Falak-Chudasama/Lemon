@@ -321,7 +321,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             activity = activity,
             title = "Snap ${app.label}",
             subtitle = "Biometric required to confirm restriction",
-            allowDeviceCredential = false, // Strong biometric required for Snap
+            allowDeviceCredential = true, // Biometric or secure credential required for Snap
             onSuccess = {
                 // Step 2: Open exact typed confirmation sheet
                 _state.update {

@@ -20,7 +20,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +28,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.coconut.R
 
 class BlockedAppActivity : ComponentActivity() {
@@ -46,18 +46,18 @@ class BlockedAppActivity : ComponentActivity() {
             ?: "This application"
 
         setContent {
-            CoconutTheme {
+            LemonTheme {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.75f))
+                        .background(Color.Black.copy(alpha = 0.78f))
                         .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Card(
-                        shape = RoundedCornerShape(24.dp),
+                        shape = LemonTheme.shapes.card,
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
+                            containerColor = LemonTheme.colors.cardBackground
                         ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -71,25 +71,30 @@ class BlockedAppActivity : ComponentActivity() {
                             Image(
                                 painter = painterResource(id = R.drawable.ic_lemon_mark),
                                 contentDescription = "Lemon Logo",
-                                modifier = Modifier.size(64.dp)
+                                modifier = Modifier.size(56.dp)
                             )
 
                             Spacer(modifier = Modifier.height(18.dp))
 
                             Text(
                                 text = "Application Snapped",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                style = LemonTheme.typography.displaySmall.copy(
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = LemonTheme.colors.textPrimary
                             )
 
                             Spacer(modifier = Modifier.height(8.dp))
 
                             Text(
                                 text = "$appLabel is currently restricted by Lemon.",
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = LemonTheme.typography.bodyMedium.copy(
+                                    fontSize = 15.sp,
+                                    lineHeight = 21.sp
+                                ),
                                 textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = LemonTheme.colors.textSecondary
                             )
 
                             Spacer(modifier = Modifier.height(24.dp))
@@ -103,21 +108,22 @@ class BlockedAppActivity : ComponentActivity() {
                                     startActivity(homeIntent)
                                     finish()
                                 },
-                                shape = RoundedCornerShape(16.dp),
+                                shape = LemonTheme.shapes.button,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                    containerColor = LemonTheme.colors.primaryAccent,
+                                    contentColor = LemonTheme.colors.onPrimaryAccent
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(48.dp)
-                                ) {
-                                    Text(
-                                        text = "Return Home",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.SemiBold
+                            ) {
+                                Text(
+                                    text = "Return Home",
+                                    style = LemonTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.Bold
                                     )
-                                }
+                                )
+                            }
                         }
                     }
                 }

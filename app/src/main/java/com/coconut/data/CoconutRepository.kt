@@ -95,9 +95,17 @@ class CoconutRepository(context: Context) {
     fun isAccessibilityPermissionGranted(): Boolean {
         if (SnapAccessibilityService.isRunning.value) return true
 
+        val settingValue = android.provider.Settings.Secure.getString(
+            appContext.contentResolver,
+            android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: ""
+        val myServiceClass = SnapAccessibilityService::class.java.name
+        if (settingValue.contains(myServiceClass) || settingValue.contains("com.coconut")) {
+            return true
+        }
+
         val am = appContext.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return false
         val enabledServices = am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
-        val myServiceClass = SnapAccessibilityService::class.java.name
         return enabledServices.any { it.resolveInfo.serviceInfo.name == myServiceClass }
     }
 

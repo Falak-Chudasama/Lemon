@@ -2,25 +2,33 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#E6120D0A"
+    android:background="#D912130D"
     android:padding="24dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:background="#26FFFFFF"
+        android:background="@drawable/bg_blocked_app_card"
         android:orientation="vertical"
         android:padding="28dp">
+
+        <ImageView
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_gravity="center_horizontal"
+            android:src="@drawable/ic_lemon_mark"
+            android:contentDescription="Lemon" />
 
         <TextView
             android:id="@+id/tvBlockedTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
+            android:layout_marginTop="16dp"
             android:fontFamily="@font/host_grotesk_bold"
             android:text="Application Snapped"
-            android:textColor="#FFFFFF"
+            android:textColor="#F7F3E8"
             android:textSize="22sp" />
 
         <TextView
@@ -30,18 +38,19 @@
             android:layout_marginTop="8dp"
             android:fontFamily="@font/urbanist_regular"
             android:text="Stay focused on what matters today."
-            android:textColor="#B3FFFFFF"
-            android:textSize="14sp" />
+            android:textColor="#BDB6A4"
+            android:textSize="15sp" />
 
         <Button
             android:id="@+id/btnReturnHome"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
             android:layout_marginTop="24dp"
-            android:backgroundTint="#A26C3D"
+            android:background="@drawable/bg_lemon_button"
+            android:backgroundTint="@null"
             android:fontFamily="@font/urbanist_semibold"
             android:text="Return Home"
-            android:textColor="#FFFFFF" />
+            android:textColor="#1C1B14"
+            android:textSize="15sp" />
     </LinearLayout>
 </FrameLayout>
-

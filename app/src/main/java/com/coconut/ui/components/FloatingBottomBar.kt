@@ -6,12 +6,14 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
@@ -23,8 +25,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,65 +39,91 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.coconut.ui.LemonColors
+import com.coconut.ui.LemonTheme
 import com.coconut.ui.NavigationTab
 
+/**
+ * Floating bottom navigation bar.
+ * Height: 64dp capsule with 20dp horizontal margin, floating above scrolling content.
+ * Follows iOS navigation bar translucency and equal-width tab touch targets.
+ */
 @Composable
 fun FloatingBottomBar(
     selectedTab: NavigationTab,
     onTabSelected: (NavigationTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
-
-    val containerColor = if (isDark) LemonColors.GlassDarkFill else LemonColors.GlassLightFill
-    val borderColor = if (isDark) LemonColors.GlassDarkBorder else LemonColors.GlassLightBorder
+    val haptic = LocalHapticFeedback.current
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(horizontal = 24.dp, vertical = 8.dp),
+            .padding(horizontal = 20.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            shape = RoundedCornerShape(32.dp),
-            color = containerColor,
-            border = BorderStroke(1.dp, borderColor),
-            shadowElevation = 4.dp,
+            shape = RoundedCornerShape(100.dp),
+            color = LemonTheme.colors.navBackground,
+            border = BorderStroke(1.dp, LemonTheme.colors.navBorder),
+            shadowElevation = 6.dp,
             modifier = Modifier
-                .height(68.dp)
+                .height(64.dp)
                 .fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 BottomNavItem(
                     label = "Snap",
-                    icon = Icons.Default.Lock,
+                    selectedIcon = Icons.Filled.Lock,
+                    unselectedIcon = Icons.Outlined.Lock,
                     isSelected = selectedTab == NavigationTab.SNAP,
-                    onClick = { onTabSelected(NavigationTab.SNAP) }
+                    onClick = {
+                        if (selectedTab != NavigationTab.SNAP) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onTabSelected(NavigationTab.SNAP)
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
                 )
 
                 BottomNavItem(
                     label = "DNS",
-                    icon = Icons.Default.Shield,
+                    selectedIcon = Icons.Filled.Shield,
+                    unselectedIcon = Icons.Outlined.Shield,
                     isSelected = selectedTab == NavigationTab.DNS,
-                    onClick = { onTabSelected(NavigationTab.DNS) }
+                    onClick = {
+                        if (selectedTab != NavigationTab.DNS) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onTabSelected(NavigationTab.DNS)
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
                 )
 
                 BottomNavItem(
                     label = "Settings",
-                    icon = Icons.Default.Settings,
+                    selectedIcon = Icons.Filled.Settings,
+                    unselectedIcon = Icons.Outlined.Settings,
                     isSelected = selectedTab == NavigationTab.SETTINGS,
-                    onClick = { onTabSelected(NavigationTab.SETTINGS) }
+                    onClick = {
+                        if (selectedTab != NavigationTab.SETTINGS) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onTabSelected(NavigationTab.SETTINGS)
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -103,26 +133,26 @@ fun FloatingBottomBar(
 @Composable
 private fun BottomNavItem(
     label: String,
-    icon: ImageVector,
+    selectedIcon: ImageVector,
+    unselectedIcon: ImageVector,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
-
-    val activeColor = if (isDark) LemonColors.PrimaryYellowDark else LemonColors.TextPrimaryLight
-    val inactiveColor = if (isDark) LemonColors.TextSecondaryDark else LemonColors.TextSecondaryLight
+    val activeColor = if (LemonTheme.isDark) LemonTheme.colors.primaryAccent else LemonTheme.colors.textPrimary
+    val inactiveColor = LemonTheme.colors.textTertiary
 
     val tintColor by animateColorAsState(
         targetValue = if (isSelected) activeColor else inactiveColor,
         animationSpec = tween(durationMillis = 180),
-        label = "TabColor"
+        label = "TabTintColor"
     )
 
     val backgroundPillColor = if (isSelected) {
-        if (isDark) {
-            LemonColors.PrimaryYellowDark.copy(alpha = 0.18f)
+        if (LemonTheme.isDark) {
+            LemonTheme.colors.primaryAccent.copy(alpha = 0.18f)
         } else {
-            LemonColors.PrimaryYellowLight.copy(alpha = 0.35f)
+            LemonTheme.colors.primaryAccent.copy(alpha = 0.35f)
         }
     } else {
         Color.Transparent
@@ -131,35 +161,44 @@ private fun BottomNavItem(
     val interactionSource = remember { MutableInteractionSource() }
 
     Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(24.dp))
-            .background(backgroundPillColor)
+        modifier = modifier
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(100.dp))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
+                role = Role.Tab,
                 onClick = onClick
-            )
-            .padding(horizontal = 20.dp, vertical = 6.dp),
+            ),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(100.dp))
+                .background(backgroundPillColor)
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = tintColor,
-                modifier = Modifier.size(22.dp)
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 11.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                ),
-                color = tintColor
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = if (isSelected) selectedIcon else unselectedIcon,
+                    contentDescription = label,
+                    tint = tintColor,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = label,
+                    style = LemonTheme.typography.labelSmall.copy(
+                        fontSize = 12.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                    ),
+                    color = tintColor
+                )
+            }
         }
     }
 }
