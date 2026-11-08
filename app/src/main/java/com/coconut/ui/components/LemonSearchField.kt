@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -48,7 +49,7 @@ fun LemonSearchField(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(100.dp))
             .background(LemonTheme.colors.cardSecondaryBackground)
             .border(
@@ -56,7 +57,7 @@ fun LemonSearchField(
                 color = LemonTheme.colors.cardBorder,
                 shape = RoundedCornerShape(100.dp)
             )
-            .padding(horizontal = 14.dp),
+            .padding(horizontal = 14.dp, vertical = 4.dp),
         contentAlignment = Alignment.CenterStart
     ) {
         Row(

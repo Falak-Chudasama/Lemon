@@ -137,8 +137,8 @@ val LemonLightSemanticColors = LemonSemanticColors(
     switchTrackOn = Color(0xFF2FA84F),
     switchTrackOff = Color(0xFFD8D3C4),
     switchThumb = Color(0xFFFFFFFF),
-    navBackground = Color(0xF2FFFCF4), // 95% opacity warm cream
-    navBorder = Color(0x2E1C1B14)
+    navBackground = Color(0xE8FFFDF7), // Translucent warm frosted cream
+    navBorder = Color(0x331C1B14)
 )
 
 val LemonDarkSemanticColors = LemonSemanticColors(
@@ -146,14 +146,14 @@ val LemonDarkSemanticColors = LemonSemanticColors(
     pageBackground = Color(0xFF12130D),
     cardBackground = Color(0xFF1E2118),
     cardSecondaryBackground = Color(0xFF262920),
-    cardElevatedBackground = Color(0xFF2B2E24),
+    cardElevatedBackground = Color(0xFF2E3227),
     textPrimary = Color(0xFFF7F3E8),
     textSecondary = Color(0xFFBDB6A4),
     textTertiary = Color(0xFF8E887A),
     textPlaceholder = Color(0xFF706B5D),
     textAccent = Color(0xFFF4C84A),
     separator = Color(0x1FFFFFFF),  // 12% opacity white separator
-    cardBorder = Color(0x24FFFFFF), // Subtle dark outline
+    cardBorder = Color(0x2EFFFFFF), // Crisp dark outline
     primaryAccent = Color(0xFFF4C84A),
     onPrimaryAccent = Color(0xFF1C1B14), // Dark ink on yellow in dark mode too!
     success = Color(0xFF7ED492),
@@ -173,8 +173,8 @@ val LemonDarkSemanticColors = LemonSemanticColors(
     switchTrackOn = Color(0xFF30B955),
     switchTrackOff = Color(0xFF3A3B33),
     switchThumb = Color(0xFFE0DDD5),
-    navBackground = Color(0xF21E2118), // 95% opacity warm charcoal
-    navBorder = Color(0x33FFFFFF)
+    navBackground = Color(0xDE1E2118), // Translucent frosted charcoal
+    navBorder = Color(0x40FFFFFF)
 )
 
 // Legacy alias bridge

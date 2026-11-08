@@ -109,7 +109,7 @@ class SafePackageHelper(private val context: Context) {
 
     fun getProtectionReason(packageName: String): String? {
         if (packageName == appContext.packageName) {
-            return "Coconut cannot be snapped by itself."
+            return "Lemon cannot be snapped by itself."
         }
         if (packageName == getDefaultLauncherPackage()) {
             return "Active system launcher is protected to prevent lock-out from home screen."

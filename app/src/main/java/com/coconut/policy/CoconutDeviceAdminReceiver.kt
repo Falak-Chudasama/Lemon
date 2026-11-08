@@ -19,8 +19,8 @@ class CoconutDeviceAdminReceiver : DeviceAdminReceiver() {
             db.securityAuditDao().insert(
                 SecurityAuditEventEntity(
                     eventType = "DEVICE_ADMIN_ENABLED",
-                    target = "Coconut",
-                    details = "Coconut Device Admin receiver has been enabled.",
+                    target = "Lemon",
+                    details = "Lemon Device Admin receiver has been enabled.",
                     severity = "INFO"
                 )
             )
@@ -35,7 +35,7 @@ class CoconutDeviceAdminReceiver : DeviceAdminReceiver() {
             db.securityAuditDao().insert(
                 SecurityAuditEventEntity(
                     eventType = "PROVISIONING_COMPLETE",
-                    target = "Coconut",
+                    target = "Lemon",
                     details = "Provisioning callback received.",
                     severity = "INFO"
                 )
@@ -51,8 +51,8 @@ class CoconutDeviceAdminReceiver : DeviceAdminReceiver() {
             db.securityAuditDao().insert(
                 SecurityAuditEventEntity(
                     eventType = "DEVICE_ADMIN_DISABLED",
-                    target = "Coconut",
-                    details = "Coconut Device Admin receiver has been disabled. Policies no longer enforced.",
+                    target = "Lemon",
+                    details = "Lemon Device Admin receiver has been disabled. Policies no longer enforced.",
                     severity = "ERROR"
                 )
             )

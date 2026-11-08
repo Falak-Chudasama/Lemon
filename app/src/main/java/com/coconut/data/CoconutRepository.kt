@@ -281,7 +281,7 @@ class CoconutRepository(context: Context) {
     suspend fun exportRulesToPlainText(): String = withContext(Dispatchers.IO) {
         val rules = domainRuleDao.getActiveRules()
         val sb = StringBuilder()
-        sb.append("# Coconut Custom Domain Rules Export\n")
+        sb.append("# Lemon Custom Domain Rules Export\n")
         sb.append("# Generated: ${System.currentTimeMillis()}\n\n")
 
         val blocked = rules.filter { it.ruleType == "BLOCK" }

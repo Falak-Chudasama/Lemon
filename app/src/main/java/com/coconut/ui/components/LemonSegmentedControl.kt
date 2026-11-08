@@ -1,9 +1,13 @@
 package com.coconut.ui.components
 
+import android.provider.Settings
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -29,7 +33,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,7 +54,8 @@ data class LemonSegmentItem(
 
 /**
  * iOS-styled segmented pill control with sliding animated indicator.
- * Height: 44-48dp, full capsule shape, spring physics.
+ * Dynamically scales with font scaling; features reduced-motion support,
+ * accessibility semantics, and high contrast in both light and dark modes.
  */
 @Composable
 fun LemonSegmentedControl(
@@ -56,13 +68,36 @@ fun LemonSegmentedControl(
 
     val selectedIndex = items.indexOfFirst { it.id == selectedId }.coerceAtLeast(0)
     val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
+    val density = LocalDensity.current
+
+    // Dynamically adjust height to accommodate larger font scaling without clipping text
+    val controlHeight = (44 * density.fontScale.coerceIn(1.0f, 1.6f)).dp
+
+    // Reduced motion support
+    val animatorScale = remember {
+        try {
+            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1.0f)
+        } catch (_: Exception) {
+            1.0f
+        }
+    }
+    val pillAnimationSpec: AnimationSpec<Float> = if (animatorScale == 0f) {
+        snap()
+    } else {
+        spring(
+            stiffness = Spring.StiffnessMediumLow,
+            dampingRatio = Spring.DampingRatioNoBouncy
+        )
+    }
 
     Surface(
         shape = RoundedCornerShape(100.dp),
         color = LemonTheme.colors.cardSecondaryBackground,
+        border = androidx.compose.foundation.BorderStroke(1.dp, LemonTheme.colors.cardBorder),
         modifier = modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(controlHeight)
     ) {
         BoxWithConstraints(
             modifier = Modifier
@@ -74,14 +109,23 @@ fun LemonSegmentedControl(
             // Animated sliding selection pill
             val animatedOffsetFraction by animateFloatAsState(
                 targetValue = selectedIndex.toFloat(),
-                animationSpec = spring(
-                    stiffness = Spring.StiffnessMediumLow,
-                    dampingRatio = Spring.DampingRatioNoBouncy
-                ),
+                animationSpec = pillAnimationSpec,
                 label = "SegmentPillSlide"
             )
 
-            // The sliding pill background
+            // High-contrast sliding pill styling (elevated background + crisp border in dark mode)
+            val pillColor = if (LemonTheme.isDark) {
+                LemonTheme.colors.cardElevatedBackground
+            } else {
+                LemonTheme.colors.cardBackground
+            }
+
+            val pillBorder = if (LemonTheme.isDark) {
+                Modifier.border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(100.dp))
+            } else {
+                Modifier.border(1.dp, Color(0x14000000), RoundedCornerShape(100.dp))
+            }
+
             Box(
                 modifier = Modifier
                     .offset(x = segmentWidth * animatedOffsetFraction)
@@ -89,7 +133,8 @@ fun LemonSegmentedControl(
                     .fillMaxHeight()
                     .shadow(elevation = 2.dp, shape = RoundedCornerShape(100.dp))
                     .clip(RoundedCornerShape(100.dp))
-                    .background(LemonTheme.colors.cardBackground)
+                    .background(pillColor)
+                    .then(pillBorder)
             )
 
             // Segment text items
@@ -103,6 +148,11 @@ fun LemonSegmentedControl(
                             .weight(1f)
                             .fillMaxHeight()
                             .clip(RoundedCornerShape(100.dp))
+                            .semantics {
+                                role = Role.RadioButton
+                                selected = isSelected
+                                stateDescription = if (isSelected) "Selected" else "Not selected"
+                            }
                             .clickable(
                                 interactionSource = interactionSource,
                                 indication = null
@@ -132,8 +182,11 @@ fun LemonSegmentedControl(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(100.dp))
                                         .background(
-                                            if (isSelected) LemonTheme.colors.cardSecondaryBackground
-                                            else LemonTheme.colors.cardBackground.copy(alpha = 0.6f)
+                                            if (isSelected) {
+                                                if (LemonTheme.isDark) Color(0x28FFFFFF) else LemonTheme.colors.cardSecondaryBackground
+                                            } else {
+                                                if (LemonTheme.isDark) Color(0x18FFFFFF) else LemonTheme.colors.cardBackground.copy(alpha = 0.7f)
+                                            }
                                         )
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
@@ -154,4 +207,3 @@ fun LemonSegmentedControl(
         }
     }
 }
-

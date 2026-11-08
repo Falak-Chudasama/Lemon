@@ -135,7 +135,7 @@ fun SnapScreen(viewModel: MainViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 20.dp, bottom = 100.dp),
+        contentPadding = PaddingValues(top = 20.dp, bottom = 140.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // Status bar top spacing

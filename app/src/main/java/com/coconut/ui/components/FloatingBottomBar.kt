@@ -40,8 +40,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,8 +55,9 @@ import com.coconut.ui.NavigationTab
 
 /**
  * Floating bottom navigation bar.
- * Height: 64dp capsule with 20dp horizontal margin, floating above scrolling content.
+ * Height: 64dp+ capsule with 20dp horizontal margin, floating above scrolling content.
  * Follows iOS navigation bar translucency and equal-width tab touch targets.
+ * Adapts height dynamically for large font scaling.
  */
 @Composable
 fun FloatingBottomBar(
@@ -60,6 +66,8 @@ fun FloatingBottomBar(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val barHeight = (64 * density.fontScale.coerceIn(1.0f, 1.25f)).dp
 
     Box(
         modifier = modifier
@@ -72,9 +80,9 @@ fun FloatingBottomBar(
             shape = RoundedCornerShape(100.dp),
             color = LemonTheme.colors.navBackground,
             border = BorderStroke(1.dp, LemonTheme.colors.navBorder),
-            shadowElevation = 6.dp,
+            shadowElevation = 8.dp,
             modifier = Modifier
-                .height(64.dp)
+                .height(barHeight)
                 .fillMaxWidth()
         ) {
             Row(
@@ -150,7 +158,7 @@ private fun BottomNavItem(
 
     val backgroundPillColor = if (isSelected) {
         if (LemonTheme.isDark) {
-            LemonTheme.colors.primaryAccent.copy(alpha = 0.18f)
+            LemonTheme.colors.primaryAccent.copy(alpha = 0.20f)
         } else {
             LemonTheme.colors.primaryAccent.copy(alpha = 0.35f)
         }
@@ -164,6 +172,11 @@ private fun BottomNavItem(
         modifier = modifier
             .fillMaxHeight()
             .clip(RoundedCornerShape(100.dp))
+            .semantics {
+                role = Role.Tab
+                selected = isSelected
+                stateDescription = if (isSelected) "Active tab" else "Inactive tab"
+            }
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
