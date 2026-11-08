@@ -214,4 +214,47 @@ class SafePackageHelper(private val context: Context) {
             appInfo.uid == Process.SYSTEM_UID || appInfo.uid == Process.PHONE_UID
         }.getOrDefault(false)
     }
+
+    fun resolveCategory(info: ApplicationInfo, manualOverride: String? = null): String {
+        if (!manualOverride.isNullOrBlank()) return manualOverride
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            when (info.category) {
+                ApplicationInfo.CATEGORY_GAME -> return "Games"
+                ApplicationInfo.CATEGORY_AUDIO,
+                ApplicationInfo.CATEGORY_VIDEO,
+                ApplicationInfo.CATEGORY_IMAGE -> return "Entertainment"
+                ApplicationInfo.CATEGORY_SOCIAL -> return "Social"
+                ApplicationInfo.CATEGORY_NEWS -> return "News"
+                ApplicationInfo.CATEGORY_MAPS -> return "Maps"
+                ApplicationInfo.CATEGORY_PRODUCTIVITY -> return "Productivity"
+                ApplicationInfo.CATEGORY_ACCESSIBILITY -> return "Utilities"
+            }
+        }
+
+        val pkg = info.packageName.lowercase()
+        return when {
+            pkg.contains("instagram") || pkg.contains("facebook") || pkg.contains("twitter") ||
+                    pkg.contains("tiktok") || pkg.contains("reddit") || pkg.contains("snapchat") ||
+                    pkg.contains("discord") || pkg.contains("threads") || pkg.contains("linkedin") -> "Social"
+
+            pkg.contains("game") || pkg.contains("king.") || pkg.contains("supercell") ||
+                    pkg.contains("roblox") || pkg.contains("unity") || pkg.contains("pubg") -> "Games"
+
+            pkg.contains("netflix") || pkg.contains("youtube") || pkg.contains("spotify") ||
+                    pkg.contains("primevideo") || pkg.contains("disney") || pkg.contains("twitch") -> "Entertainment"
+
+            pkg.contains("amazon") || pkg.contains("ebay") || pkg.contains("flipkart") ||
+                    pkg.contains("walmart") || pkg.contains("shop") -> "Shopping"
+
+            pkg.contains("bank") || pkg.contains("pay") || pkg.contains("wallet") ||
+                    pkg.contains("crypto") -> "Finance"
+
+            pkg.contains("whatsapp") || pkg.contains("telegram") || pkg.contains("signal") ||
+                    pkg.contains("messenger") -> "Communication"
+
+            (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0 -> "System"
+            else -> "Other"
+        }
+    }
 }

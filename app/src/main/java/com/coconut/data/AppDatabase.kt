@@ -16,9 +16,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DomainRuleEntity::class,
         BlocklistSourceEntity::class,
         DnsConfigurationEntity::class,
-        StrictModeConfigEntity::class
+        StrictModeConfigEntity::class,
+        DomainChangeRequestEntity::class,
+        DnsScheduleEntity::class,
+        AppCategoryOverrideEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -30,6 +33,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun blocklistSourceDao(): BlocklistSourceDao
     abstract fun dnsConfigurationDao(): DnsConfigurationDao
     abstract fun strictModeConfigDao(): StrictModeConfigDao
+    abstract fun domainChangeRequestDao(): DomainChangeRequestDao
+    abstract fun dnsScheduleDao(): DnsScheduleDao
+    abstract fun appCategoryOverrideDao(): AppCategoryOverrideDao
 
     companion object {
         @Volatile
@@ -144,15 +150,15 @@ abstract class AppDatabase : RoomDatabase() {
                 val now = System.currentTimeMillis()
                 db.execSQL("""
                     INSERT OR IGNORE INTO blocklist_sources (id, name, url, version, lastUpdated, ruleCount, isEnabled, category)
-                    VALUES ('hagezi_threat_mini', 'HaGeZi Threat Intelligence Feeds (TIF Mini)', 'https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/tif.mini.txt', '1.0', $now, 10000, 1, 'THREATS')
+                    VALUES ('hagezi_threat_mini', 'HaGeZi Threat Intelligence Feeds (TIF Mini)', 'https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/tif.mini.txt', '1.0', $now, 189700, 1, 'THREATS')
                 """.trimIndent())
                 db.execSQL("""
                     INSERT OR IGNORE INTO blocklist_sources (id, name, url, version, lastUpdated, ruleCount, isEnabled, category)
-                    VALUES ('hagezi_nsfw', 'HaGeZi NSFW (Adult Content)', 'https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/nsfw.txt', '1.0', $now, 10000, 0, 'ADULT_CONTENT')
+                    VALUES ('hagezi_nsfw', 'HaGeZi NSFW (Adult Content)', 'https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/nsfw.txt', '1.0', $now, 77921, 0, 'ADULT_CONTENT')
                 """.trimIndent())
                 db.execSQL("""
                     INSERT OR IGNORE INTO blocklist_sources (id, name, url, version, lastUpdated, ruleCount, isEnabled, category)
-                    VALUES ('hagezi_pro_mini', 'HaGeZi Multi PRO Mini', 'https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.mini.txt', '1.0', $now, 10000, 0, 'ADS_TRACKING')
+                    VALUES ('hagezi_pro_mini', 'HaGeZi Multi PRO Mini', 'https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.mini.txt', '1.0', $now, 164028, 0, 'ADS_TRACKING')
                 """.trimIndent())
 
                 // 3. Create dns_configuration table
@@ -199,6 +205,53 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Create domain_change_requests table and indices
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS domain_change_requests (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        requestId TEXT NOT NULL,
+                        normalizedDomain TEXT NOT NULL,
+                        operation TEXT NOT NULL,
+                        createdAtEpochMillis INTEGER NOT NULL,
+                        effectiveAtEpochMillis INTEGER NOT NULL,
+                        status TEXT NOT NULL,
+                        createdTimeZoneId TEXT NOT NULL,
+                        lastEvaluatedAtEpochMillis INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_domain_change_requests_normalizedDomain_status ON domain_change_requests(normalizedDomain, status)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_domain_change_requests_status_effectiveAtEpochMillis ON domain_change_requests(status, effectiveAtEpochMillis)")
+
+                // 2. Create dns_schedule table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS dns_schedule (
+                        id INTEGER PRIMARY KEY NOT NULL,
+                        enabled INTEGER NOT NULL,
+                        startHour INTEGER NOT NULL,
+                        startMinute INTEGER NOT NULL,
+                        endHour INTEGER NOT NULL,
+                        endMinute INTEGER NOT NULL,
+                        lastEvaluatedAtEpochMillis INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    INSERT OR IGNORE INTO dns_schedule (id, enabled, startHour, startMinute, endHour, endMinute, lastEvaluatedAtEpochMillis)
+                    VALUES (1, 1, 23, 0, 6, 0, 0)
+                """.trimIndent())
+
+                // 3. Create app_category_overrides table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS app_category_overrides (
+                        packageName TEXT PRIMARY KEY NOT NULL,
+                        category TEXT NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun get(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -206,7 +259,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "coconut_snap.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build()
                     .also { INSTANCE = it }
             }

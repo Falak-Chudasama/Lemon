@@ -1,13 +1,11 @@
 package com.coconut.ui.screens
 
 import android.app.Activity
-import android.content.Intent
 import android.net.VpnService
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,27 +24,27 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -57,21 +55,30 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.fragment.app.FragmentActivity
+import com.coconut.data.DomainChangeOperation
+import com.coconut.data.DomainChangeRequestEntity
 import com.coconut.data.DomainRuleEntity
 import com.coconut.ui.CoconutColors
 import com.coconut.ui.MainViewModel
+import com.coconut.ui.components.GlassStatusBadge
 
 @Composable
 fun DnsScreen(viewModel: MainViewModel) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val activity = context as? FragmentActivity
 
-    var showAddDialog by remember { mutableStateOf(false) }
-    var showBulkDialog by remember { mutableStateOf(false) }
+    var showAddDomainDialog by remember { mutableStateOf(false) }
+    var domainInputText by remember { mutableStateOf("") }
+    var isBulkInput by remember { mutableStateOf(false) }
 
     val vpnPrepareLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -94,214 +101,311 @@ fun DnsScreen(viewModel: MainViewModel) {
         else currentRules.filter { it.domain.contains(state.domainFilterQuery, ignoreCase = true) }
     }
 
-    Column(
+    // Single LazyColumn full-page scrolling
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 20.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
+        // 1. Header
+        item(key = "dns_header") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Content Shield",
+                        style = MaterialTheme.typography.displayMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = if (state.isVpnRunning) "DNS active" else "DNS inactive",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
-        // Header and Master Switch
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "Local DNS",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = if (state.isVpnRunning) "Filtering active on-device" else "Filtering paused",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (state.isVpnRunning) CoconutColors.ProtectedGreen else MaterialTheme.colorScheme.outline
+                GlassStatusBadge(
+                    text = if (state.isVpnRunning) "Protected" else "Inactive",
+                    statusColor = if (state.isVpnRunning) CoconutColors.SuccessLight else CoconutColors.TextSecondaryLight
                 )
             }
-
-            Switch(
-                checked = state.isVpnRunning,
-                onCheckedChange = { enable ->
-                    if (enable) {
-                        val vpnIntent = VpnService.prepare(context)
-                        if (vpnIntent != null) {
-                            vpnPrepareLauncher.launch(vpnIntent)
-                        } else {
-                            viewModel.toggleDns(true)
-                        }
-                    } else {
-                        viewModel.toggleDns(false)
-                    }
-                },
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                    checkedTrackColor = MaterialTheme.colorScheme.primary
-                )
-            )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Built-in Threat Protection Card
-        Card(
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+        // 2. Master Protection Switch Card
+        item(key = "master_dns_card") {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                shadowElevation = 0.5.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Threat Intelligence",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
+                            text = "DNS Filtering",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        Text(
-                            text = "HaGeZi threat feeds (phishing, malware, scam)",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                    }
-                    Switch(
-                        checked = state.dnsConfig?.blockThreats ?: true,
-                        onCheckedChange = { viewModel.updateDnsConfiguration(blockThreats = it) }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Adult Content",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "HaGeZi NSFW adult domain filter",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                    }
-                    Switch(
-                        checked = state.dnsConfig?.blockAdultContent ?: false,
-                        onCheckedChange = { viewModel.updateDnsConfiguration(blockAdultContent = it) }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Ads & Trackers",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Optional ad & telemetry blocklist",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                    }
-                    Switch(
-                        checked = state.dnsConfig?.blockAdsTrackers ?: false,
-                        onCheckedChange = { viewModel.updateDnsConfiguration(blockAds = it) }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = state.blocklistStatus ?: "Blocklists ready",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    IconButton(
-                        onClick = { viewModel.triggerBlocklistUpdate() },
-                        enabled = !state.isUpdatingBlocklist
-                    ) {
-                        if (state.isUpdatingBlocklist) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        if (state.isInsideNightSchedule) {
+                            Text(
+                                text = "Locked: Night schedule active (23:00 – 06:00)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = CoconutColors.WarningLight,
+                                fontWeight = FontWeight.Medium
+                            )
                         } else {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Update Blocklists",
-                                tint = MaterialTheme.colorScheme.primary
+                            Text(
+                                text = "Local encrypted DNS loopback",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Switch(
+                        checked = state.isVpnRunning,
+                        onCheckedChange = { checked ->
+                            if (checked) {
+                                val prepareIntent = VpnService.prepare(context)
+                                if (prepareIntent != null) {
+                                    vpnPrepareLauncher.launch(prepareIntent)
+                                } else {
+                                    viewModel.toggleDns(true)
+                                }
+                            } else {
+                                viewModel.toggleDns(false)
+                            }
+                        },
+                        enabled = !state.isInsideNightSchedule,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = CoconutColors.CocoaPrimary
+                        )
+                    )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        // 3. Night Schedule Card (23:00 - 06:00)
+        item(key = "night_schedule_card") {
+            val schedule = state.dnsSchedule
+            val scheduleEnabled = schedule?.enabled ?: true
 
-        // Private DNS Limitation Notice
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = "Notice: Android Private DNS must be set to 'Off' or 'Automatic' in Settings. Strict Private DNS hostnames bypass local VPN DNS.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-            )
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                shadowElevation = 0.5.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = "Schedule",
+                                tint = CoconutColors.CocoaPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Night Schedule",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Text(
+                            text = "Daily 23:00 – 06:00 (controls locked)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Switch(
+                        checked = scheduleEnabled,
+                        onCheckedChange = { enabled ->
+                            viewModel.setScheduleEnabled(enabled)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = CoconutColors.CocoaPrimary
+                        )
+                    )
+                }
+            }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        // 4. Built-in Feeds Card (HaGeZi Feeds: TIF Mini, NSFW, Multi PRO Mini)
+        item(key = "builtin_feeds_card") {
+            val config = state.dnsConfig
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                shadowElevation = 0.5.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Text(
+                        text = "Built-in Protection",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
 
-        // Custom Domain Rules Section Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+                    // Feed 1: Threat Intelligence (TIF Mini)
+                    FeedToggleRow(
+                        title = "Threat Intelligence",
+                        subtitle = "HaGeZi TIF Mini (189,700 rules)",
+                        checked = config?.blockThreats ?: true,
+                        onCheckedChange = { viewModel.updateDnsConfiguration(blockThreats = it) }
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Feed 2: Adult Content (NSFW)
+                    FeedToggleRow(
+                        title = "Adult Content",
+                        subtitle = "HaGeZi NSFW (77,921 rules)",
+                        checked = config?.blockAdultContent ?: false,
+                        onCheckedChange = { viewModel.updateDnsConfiguration(blockAdultContent = it) }
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Feed 3: Ads & Trackers (Multi PRO Mini)
+                    FeedToggleRow(
+                        title = "Ads & Trackers",
+                        subtitle = "HaGeZi Multi PRO Mini (164,028 rules)",
+                        checked = config?.blockAdsTrackers ?: false,
+                        onCheckedChange = { viewModel.updateDnsConfiguration(blockAds = it) }
+                    )
+                }
+            }
+        }
+
+        // 5. Pending Changes Queue Card (Exact 30-Day Delay)
+        if (state.pendingDomainRequests.isNotEmpty()) {
+            item(key = "pending_changes_card") {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, CoconutColors.WarningLight.copy(alpha = 0.3f)),
+                    shadowElevation = 0.5.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Pending Changes",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            GlassStatusBadge(
+                                text = "${state.pendingDomainRequests.size} queued",
+                                statusColor = CoconutColors.WarningLight
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        state.pendingDomainRequests.forEach { request ->
+                            PendingRequestRow(
+                                request = request,
+                                onCancel = { viewModel.cancelPendingRequest(request.id) }
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
+                }
+            }
+        }
+
+        // 6. Custom Domains Section Header
+        item(key = "custom_domains_header") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Custom Rules",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Button(
+                    onClick = { showAddDomainDialog = true },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CoconutColors.CocoaPrimary,
+                        contentColor = Color.White
+                    ),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Add domain", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        }
+
+        // 7. Tabs: Blocklist / Allowlist
+        item(key = "domain_tabs") {
             TabRow(
                 selectedTabIndex = if (state.selectedRuleTab == "BLOCK") 0 else 1,
-                modifier = Modifier.weight(1f),
-                containerColor = Color.Transparent,
-                divider = {}
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                indicator = { tabPositions ->
+                    TabRowDefaults.SecondaryIndicator(
+                        Modifier.tabIndicatorOffset(tabPositions[if (state.selectedRuleTab == "BLOCK") 0 else 1]),
+                        color = CoconutColors.CocoaPrimary
+                    )
+                },
+                modifier = Modifier.clip(RoundedCornerShape(12.dp))
             ) {
                 Tab(
                     selected = state.selectedRuleTab == "BLOCK",
                     onClick = { viewModel.setSelectedRuleTab("BLOCK") },
                     text = {
                         Text(
-                            text = "Blocked (${blockedRules.size})",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = if (state.selectedRuleTab == "BLOCK") FontWeight.Bold else FontWeight.Normal
+                            text = "Blocklist (${blockedRules.size})",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 )
@@ -310,34 +414,22 @@ fun DnsScreen(viewModel: MainViewModel) {
                     onClick = { viewModel.setSelectedRuleTab("ALLOW") },
                     text = {
                         Text(
-                            text = "Allowed (${allowedRules.size})",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = if (state.selectedRuleTab == "ALLOW") FontWeight.Bold else FontWeight.Normal
+                            text = "Allowlist (${allowedRules.size})",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 )
             }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            IconButton(onClick = { showAddDialog = true }) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add Domain",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Search Domain Input
-        if (currentRules.size > 5) {
+        // 8. Domain Search Field
+        item(key = "domain_search") {
             OutlinedTextField(
                 value = state.domainFilterQuery,
                 onValueChange = viewModel::setDomainFilterQuery,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search domain rules...", style = MaterialTheme.typography.bodySmall) },
+                placeholder = { Text("Filter domains...", style = MaterialTheme.typography.bodyMedium) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
@@ -345,86 +437,254 @@ fun DnsScreen(viewModel: MainViewModel) {
                         tint = MaterialTheme.colorScheme.outline
                     )
                 },
+                trailingIcon = {
+                    if (state.domainFilterQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.setDomainFilterQuery("") }) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Clear",
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    }
+                },
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                )
             )
-            Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // Domain Rule List
+        // 9. Domain Rows
         if (filteredRules.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            item(key = "empty_domains") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = if (state.selectedRuleTab == "BLOCK") "No custom blocked domains" else "No custom allowed domains",
+                        text = if (state.selectedRuleTab == "BLOCK") "No blocked domains" else "No allowed domains",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.outline
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = { showAddDialog = true },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    ) {
-                        Text("Add Domain", style = MaterialTheme.typography.labelMedium)
-                    }
                 }
             }
         } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(bottom = 80.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                items(
-                    items = filteredRules,
-                    key = { it.domain }
-                ) { rule ->
-                    DomainRuleRow(
-                        rule = rule,
-                        onDelete = { viewModel.deleteDomain(rule.domain) }
-                    )
-                }
+            items(
+                items = filteredRules,
+                key = { it.domain }
+            ) { rule ->
+                DomainRuleRow(
+                    rule = rule,
+                    onDelete = {
+                        if (activity != null) {
+                            if (rule.ruleType == "BLOCK") {
+                                viewModel.requestRemoveBlocklistDomain(activity, rule.domain)
+                            } else {
+                                viewModel.requestRemoveAllowlistDomain(activity, rule.domain)
+                            }
+                        }
+                    }
+                )
             }
         }
     }
 
     // Add Domain Dialog
-    if (showAddDialog) {
-        AddDomainDialog(
-            initialType = state.selectedRuleTab,
-            onDismiss = { showAddDialog = false },
-            onAddSingle = { domain, type ->
-                viewModel.addDomain(domain, type)
-                showAddDialog = false
+    if (showAddDomainDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showAddDomainDialog = false
+                domainInputText = ""
             },
-            onOpenBulk = {
-                showAddDialog = false
-                showBulkDialog = true
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Text(
+                    text = if (state.selectedRuleTab == "BLOCK") "Add to Blocklist" else "Add to Allowlist",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = if (state.selectedRuleTab == "BLOCK")
+                            "Biometric required. Takes effect immediately."
+                        else
+                            "Biometric required. Exact 30-day delay applies before allowing.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    OutlinedTextField(
+                        value = domainInputText,
+                        onValueChange = { domainInputText = it },
+                        placeholder = { Text("example.com") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = !isBulkInput,
+                        maxLines = if (isBulkInput) 6 else 1,
+                        shape = RoundedCornerShape(14.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Multiple lines (bulk)",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Switch(
+                            checked = isBulkInput,
+                            onCheckedChange = { isBulkInput = it }
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val input = domainInputText.trim()
+                        if (input.isNotEmpty() && activity != null) {
+                            if (isBulkInput) {
+                                viewModel.addBulkDomains(input, state.selectedRuleTab)
+                            } else {
+                                if (state.selectedRuleTab == "BLOCK") {
+                                    viewModel.requestAddBlocklistDomain(activity, input)
+                                } else {
+                                    viewModel.requestAddAllowlistDomain(activity, input)
+                                }
+                            }
+                            showAddDomainDialog = false
+                            domainInputText = ""
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CoconutColors.CocoaPrimary,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showAddDomainDialog = false
+                        domainInputText = ""
+                    }
+                ) {
+                    Text("Cancel")
+                }
             }
         )
     }
+}
 
-    // Bulk Domain Dialog
-    if (showBulkDialog) {
-        BulkDomainDialog(
-            initialType = state.selectedRuleTab,
-            onDismiss = { showBulkDialog = false },
-            onAddBulk = { text, type ->
-                viewModel.addBulkDomains(text, type)
-                showBulkDialog = false
-            }
+@Composable
+private fun FeedToggleRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = CoconutColors.CocoaPrimary
+            )
         )
+    }
+}
+
+@Composable
+private fun PendingRequestRow(
+    request: DomainChangeRequestEntity,
+    onCancel: () -> Unit
+) {
+    val remainingHours = remember(request.effectiveAtEpochMillis) {
+        val diff = request.effectiveAtEpochMillis - System.currentTimeMillis()
+        val hours = (diff / (1000 * 3600)).coerceAtLeast(0)
+        hours
+    }
+    val days = remainingHours / 24
+    val hours = remainingHours % 24
+    val countdownText = if (days > 0) "${days}d ${hours}h left" else "${hours}h left"
+
+    val actionLabel = if (request.operation == DomainChangeOperation.REMOVE_BLOCK) {
+        "Remove block: ${request.normalizedDomain}"
+    } else {
+        "Allow domain: ${request.normalizedDomain}"
+    }
+
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = actionLabel,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "Waiting: $countdownText",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CoconutColors.WarningLight,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            OutlinedButton(
+                onClick = onCancel,
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text("Cancel", style = MaterialTheme.typography.labelSmall)
+            }
+        }
     }
 }
 
@@ -433,18 +693,17 @@ private fun DomainRuleRow(
     rule: DomainRuleEntity,
     onDelete: () -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+        shadowElevation = 0.5.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -458,146 +717,23 @@ private fun DomainRuleRow(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "Subdomains included",
+                    text = rule.source,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.outline
                 )
             }
 
-            IconButton(onClick = onDelete) {
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(36.dp)
+            ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete",
-                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                    contentDescription = "Remove",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
     }
 }
-
-@Composable
-private fun AddDomainDialog(
-    initialType: String,
-    onDismiss: () -> Unit,
-    onAddSingle: (String, String) -> Unit,
-    onOpenBulk: () -> Unit
-) {
-    var domainInput by remember { mutableStateOf("") }
-    var ruleType by remember { mutableStateOf(initialType) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Domain Rule", style = MaterialTheme.typography.titleMedium) },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = domainInput,
-                    onValueChange = { domainInput = it },
-                    label = { Text("Domain (e.g. reddit.com)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = ruleType == "BLOCK",
-                        onClick = { ruleType = "BLOCK" },
-                        label = { Text("Block") }
-                    )
-                    FilterChip(
-                        selected = ruleType == "ALLOW",
-                        onClick = { ruleType = "ALLOW" },
-                        label = { Text("Allow") }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                TextButton(
-                    onClick = onOpenBulk,
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Paste multiple domains...", style = MaterialTheme.typography.labelMedium)
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onAddSingle(domainInput, ruleType) },
-                enabled = domainInput.isNotBlank()
-            ) {
-                Text("Add")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-}
-
-@Composable
-private fun BulkDomainDialog(
-    initialType: String,
-    onDismiss: () -> Unit,
-    onAddBulk: (String, String) -> Unit
-) {
-    var textInput by remember { mutableStateOf("") }
-    var ruleType by remember { mutableStateOf(initialType) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Bulk Add Domains", style = MaterialTheme.typography.titleMedium) },
-        text = {
-            Column {
-                Text(
-                    text = "Paste newline-separated domains:",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = textInput,
-                    onValueChange = { textInput = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = ruleType == "BLOCK",
-                        onClick = { ruleType = "BLOCK" },
-                        label = { Text("Block") }
-                    )
-                    FilterChip(
-                        selected = ruleType == "ALLOW",
-                        onClick = { ruleType = "ALLOW" },
-                        label = { Text("Allow") }
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onAddBulk(textInput, ruleType) },
-                enabled = textInput.isNotBlank()
-            ) {
-                Text("Import")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-}
-

@@ -8,7 +8,10 @@ import android.view.accessibility.AccessibilityManager
 import com.coconut.core.SafePackageHelper
 import com.coconut.dns.BlocklistManager
 import com.coconut.dns.CoconutVpnService
+import com.coconut.dns.DnsScheduleManager
 import com.coconut.dns.DomainPolicyEngine
+import com.coconut.dns.DomainQueueManager
+import com.coconut.security.AppLockManager
 import com.coconut.security.StrictModeManager
 import com.coconut.service.SnapAccessibilityService
 import kotlinx.coroutines.Dispatchers
@@ -23,14 +26,30 @@ class CoconutRepository(context: Context) {
     private val dnsConfigDao = db.dnsConfigurationDao()
     private val blocklistSourceDao = db.blocklistSourceDao()
     private val strictModeDao = db.strictModeConfigDao()
+    private val categoryOverrideDao = db.appCategoryOverrideDao()
 
     val safePackageHelper = SafePackageHelper(appContext)
     val blocklistManager = BlocklistManager(appContext)
     val strictModeManager = StrictModeManager(appContext)
+    val queueManager = DomainQueueManager(appContext)
+    val scheduleManager = DnsScheduleManager(appContext)
+    val appLockManager = AppLockManager(appContext)
 
     // --- 1. THE SNAP (ACCESSIBILITY FOREGROUND RESTRICTION) ---
 
     fun observeSnappedApps(): Flow<List<SnappedAppEntity>> = snapDao.observeAll()
+
+    fun observeCategoryOverrides(): Flow<List<AppCategoryOverrideEntity>> = categoryOverrideDao.getAllOverridesFlow()
+
+    suspend fun setCategoryOverride(packageName: String, category: String) = withContext(Dispatchers.IO) {
+        categoryOverrideDao.insertOrUpdate(
+            AppCategoryOverrideEntity(
+                packageName = packageName,
+                category = category,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+    }
 
     suspend fun snapApp(
         packageName: String,
@@ -89,8 +108,14 @@ class CoconutRepository(context: Context) {
     fun observeAllowedRules(): Flow<List<DomainRuleEntity>> = domainRuleDao.getRulesByTypeFlow("ALLOW")
     fun observeDnsConfig(): Flow<DnsConfigurationEntity?> = dnsConfigDao.getConfigurationFlow()
     fun observeBlocklistSources(): Flow<List<BlocklistSourceEntity>> = blocklistSourceDao.getAllSourcesFlow()
+    fun observePendingChangeRequests(): Flow<List<DomainChangeRequestEntity>> = queueManager.pendingRequestsFlow
+    fun observeDnsSchedule(): Flow<DnsScheduleEntity?> = scheduleManager.scheduleFlow
 
-    suspend fun addDomainRule(rawDomain: String, ruleType: String): Result<String> = withContext(Dispatchers.IO) {
+    /**
+     * Adds domain to Blocklist immediately (strengthens filtering).
+     * Cancels any pending removal request, removes conflicting allow rule, and writes rule atomically.
+     */
+    suspend fun addBlocklistDomain(rawDomain: String): Result<String> = withContext(Dispatchers.IO) {
         val domain = DomainPolicyEngine.normalizeDomain(rawDomain)
             ?: return@withContext Result.failure(IllegalArgumentException("Invalid domain name: enter a hostname like example.com"))
 
@@ -98,17 +123,52 @@ class CoconutRepository(context: Context) {
             return@withContext Result.failure(IllegalArgumentException("Malformed domain: enter a valid hostname without http:// or path"))
         }
 
+        // Cancel any pending removal request for this domain
+        db.domainChangeRequestDao().cancelPendingForDomain(domain)
+
         val now = System.currentTimeMillis()
         val rule = DomainRuleEntity(
             domain = domain,
-            ruleType = ruleType,
+            ruleType = "BLOCK",
             isEnabled = true,
             source = "USER",
             createdAt = now,
             updatedAt = now
         )
+        // Primary key replacement guarantees mutual exclusivity against previous ALLOW
         domainRuleDao.insertOrUpdate(rule)
         Result.success(domain)
+    }
+
+    /**
+     * Queues domain removal from Blocklist (weakens filtering).
+     * Enforces an exact 30-day (720 hours) waiting period while keeping the block active.
+     */
+    suspend fun queueRemoveBlocklistDomain(domain: String): Result<DomainChangeRequestEntity> {
+        return queueManager.queueRemoveBlock(domain)
+    }
+
+    /**
+     * Queues domain addition to Allowlist (weakens filtering).
+     * Enforces an exact 30-day (720 hours) waiting period while keeping the domain unallowed.
+     */
+    suspend fun queueAddAllowlistDomain(rawDomain: String): Result<DomainChangeRequestEntity> {
+        return queueManager.queueAddAllow(rawDomain)
+    }
+
+    /**
+     * Removes domain from Allowlist immediately (strengthens filtering).
+     */
+    suspend fun removeAllowlistDomain(domain: String) = withContext(Dispatchers.IO) {
+        val normalized = DomainPolicyEngine.normalizeDomain(domain) ?: domain
+        domainRuleDao.deleteByDomain(normalized)
+    }
+
+    /**
+     * Cancels any pending domain change request without weakening protection.
+     */
+    suspend fun cancelDomainChangeRequest(requestId: Long): Boolean {
+        return queueManager.cancelRequest(requestId)
     }
 
     suspend fun addBulkDomains(rawText: String, ruleType: String): Pair<Int, Int> = withContext(Dispatchers.IO) {

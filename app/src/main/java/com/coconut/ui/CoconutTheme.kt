@@ -6,6 +6,8 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -31,59 +33,83 @@ val UrbanistFontFamily = FontFamily(
 )
 
 object CoconutColors {
-    // Warm Coconut Brand Palette
-    val Espresso = Color(0xFF382006)
-    val HuskBronze = Color(0xFF6B4019)
-    val Caramel = Color(0xFFA26C3D)
-    val CoconutCream = Color(0xFFF7EFE6)
-    val CoconutFlesh = Color(0xFFFAF7F2)
-    val SlateTint = Color(0xFF8C7E72)
+    // Light palette tokens
+    val IvoryBackground = Color(0xFFF7F3ED)
+    val PulpSurface = Color(0xFFFFFCF7)
+    val SurfaceVariantLight = Color(0xFFF0E9E0)
+    val SurfaceRaisedLight = Color(0xFFFFFDFB)
+    val CocoaPrimary = Color(0xFF704426)
+    val EspressoDark = Color(0xFF4A2E1F)
+    val ToastedBrown = Color(0xFF8B5A35)
+    val CaramelSecondary = Color(0xFFB77A4A)
+    val CopperAccent = Color(0xFFC58A59)
+    val TextPrimaryLight = Color(0xFF211A16)
+    val TextSecondaryLight = Color(0xFF6F6258)
+    val OutlineLight = Color(0xFFD7C9BA)
+    val SuccessLight = Color(0xFF18794E)
+    val ErrorLight = Color(0xFFB3261E)
+    val WarningLight = Color(0xFF8A5A00)
 
-    // Status colors
-    val ProtectedGreen = Color(0xFF2E7D32)
-    val AwaitingAmber = Color(0xFFE65100)
-    val SnappedRed = Color(0xFFC62828)
-    val Error = Color(0xFFBA1A1A)
+    // Dark palette tokens
+    val DarkCharcoalBackground = Color(0xFF15120F)
+    val DarkSurface = Color(0xFF211A16)
+    val DarkSurfaceVariant = Color(0xFF2A211B)
+    val DarkGlassSurface = Color(0xFF2A211B)
+    val CaramelDarkAccent = Color(0xFFC58A59)
+    val SecondaryBrownDark = Color(0xFFB77A4A)
+    val DeepCaramel = Color(0xFF7A4B2A)
+    val TextPrimaryDark = Color(0xFFF6EFE6)
+    val TextSecondaryDark = Color(0xFFC2B4A5)
+    val OutlineDark = Color(0xFF514237)
+    val SuccessDark = Color(0xFF56C596)
+    val ErrorDark = Color(0xFFFF8A80)
+    val WarningDark = Color(0xFFE6B566)
 
-    // Glass surfaces
-    val GlassLightFill = Color(0xF2FFFFFF)
-    val GlassLightBorder = Color(0x33A26C3D)
-    val GlassDarkFill = Color(0xE6241D17)
-    val GlassDarkBorder = Color(0x33DDB892)
+    // Floating glass materials
+    val GlassLightFill = Color(0xDCFFFCF7) // 86% opaque
+    val GlassLightBorder = Color(0x33D7C9BA)
+    val GlassDarkFill = Color(0xDC211A16) // 86% opaque
+    val GlassDarkBorder = Color(0x33514237)
+
+    // Backward compatibility aliases
+    val Caramel = CaramelSecondary
+    val SnappedRed = ErrorLight
+    val ProtectedGreen = SuccessLight
+    val AwaitingAmber = WarningLight
 }
 
 val CoconutTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = HostGroteskFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 40.sp,
-        lineHeight = 48.sp,
+        fontSize = 32.sp,
+        lineHeight = 40.sp,
         letterSpacing = (-0.5).sp
     ),
     displayMedium = TextStyle(
         fontFamily = HostGroteskFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 32.sp,
-        lineHeight = 38.sp,
+        fontSize = 28.sp,
+        lineHeight = 36.sp,
         letterSpacing = (-0.25).sp
     ),
     displaySmall = TextStyle(
         fontFamily = HostGroteskFontFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 26.sp,
-        lineHeight = 32.sp
+        fontSize = 24.sp,
+        lineHeight = 30.sp
     ),
     headlineLarge = TextStyle(
         fontFamily = HostGroteskFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 24.sp,
-        lineHeight = 30.sp
+        fontSize = 22.sp,
+        lineHeight = 28.sp
     ),
     headlineMedium = TextStyle(
         fontFamily = HostGroteskFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 20.sp,
-        lineHeight = 26.sp
+        lineHeight = 28.sp
     ),
     headlineSmall = TextStyle(
         fontFamily = HostGroteskFontFamily,
@@ -147,56 +173,64 @@ val CoconutTypography = Typography(
     )
 )
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFFDDB892),
-    onPrimary = Color(0xFF382006),
-    primaryContainer = Color(0xFF53381B),
-    onPrimaryContainer = Color(0xFFF7EFE6),
-    secondary = Color(0xFFC7A88A),
-    onSecondary = Color(0xFF2E1D0C),
-    secondaryContainer = Color(0xFF45301E),
-    onSecondaryContainer = Color(0xFFE8D7C6),
-    tertiary = Color(0xFF81C784),
-    onTertiary = Color(0xFF00390E),
-    background = Color(0xFF16120E),
-    onBackground = Color(0xFFEBE0D7),
-    surface = Color(0xFF221B15),
-    onSurface = Color(0xFFEBE0D7),
-    surfaceVariant = Color(0xFF352B23),
-    onSurfaceVariant = Color(0xFFD3C3B6),
-    outline = Color(0xFF9C8D81),
-    error = Color(0xFFFFB4AB),
-    onError = Color(0xFF690005)
+private val LightColorScheme = lightColorScheme(
+    primary = CoconutColors.CocoaPrimary,
+    onPrimary = Color.White,
+    primaryContainer = CoconutColors.SurfaceVariantLight,
+    onPrimaryContainer = CoconutColors.TextPrimaryLight,
+    secondary = CoconutColors.CaramelSecondary,
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFE9DED1),
+    onSecondaryContainer = CoconutColors.TextPrimaryLight,
+    tertiary = CoconutColors.CopperAccent,
+    onTertiary = Color.White,
+    background = CoconutColors.IvoryBackground,
+    onBackground = CoconutColors.TextPrimaryLight,
+    surface = CoconutColors.PulpSurface,
+    onSurface = CoconutColors.TextPrimaryLight,
+    surfaceVariant = CoconutColors.SurfaceVariantLight,
+    onSurfaceVariant = CoconutColors.TextSecondaryLight,
+    outline = CoconutColors.OutlineLight,
+    error = CoconutColors.ErrorLight,
+    onError = Color.White
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF7A4A22),
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFF7EFE6),
-    onPrimaryContainer = Color(0xFF2E1700),
-    secondary = Color(0xFF6E5948),
-    onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFF4E9DF),
-    onSecondaryContainer = Color(0xFF27170A),
-    tertiary = Color(0xFF2E7D32),
-    onTertiary = Color(0xFFFFFFFF),
-    background = Color(0xFFFAF7F2),
-    onBackground = Color(0xFF201B16),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF201B16),
-    surfaceVariant = Color(0xFFEFE8E1),
-    onSurfaceVariant = Color(0xFF4F453D),
-    outline = Color(0xFF81756C),
-    error = Color(0xFFBA1A1A),
-    onError = Color(0xFFFFFFFF)
+private val DarkColorScheme = darkColorScheme(
+    primary = CoconutColors.CaramelDarkAccent,
+    onPrimary = CoconutColors.TextPrimaryLight,
+    primaryContainer = CoconutColors.DarkSurfaceVariant,
+    onPrimaryContainer = CoconutColors.TextPrimaryDark,
+    secondary = CoconutColors.SecondaryBrownDark,
+    onSecondary = CoconutColors.TextPrimaryLight,
+    secondaryContainer = Color(0xFF352920),
+    onSecondaryContainer = CoconutColors.TextPrimaryDark,
+    tertiary = CoconutColors.DeepCaramel,
+    onTertiary = Color.White,
+    background = CoconutColors.DarkCharcoalBackground,
+    onBackground = CoconutColors.TextPrimaryDark,
+    surface = CoconutColors.DarkSurface,
+    onSurface = CoconutColors.TextPrimaryDark,
+    surfaceVariant = CoconutColors.DarkSurfaceVariant,
+    onSurfaceVariant = CoconutColors.TextSecondaryDark,
+    outline = CoconutColors.OutlineDark,
+    error = CoconutColors.ErrorDark,
+    onError = Color(0xFF690005)
 )
 
 @Composable
 fun CoconutTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val themeMode by ThemePreferences.themeModeFlow.collectAsState()
+    val systemDark = isSystemInDarkTheme()
+
+    val useDarkTheme = when (themeMode) {
+        AppThemeMode.SYSTEM -> systemDark
+        AppThemeMode.LIGHT -> false
+        AppThemeMode.DARK -> true
+    }
+
+    val colorScheme = if (useDarkTheme) DarkColorScheme else LightColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,

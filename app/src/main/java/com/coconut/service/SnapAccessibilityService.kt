@@ -1,9 +1,12 @@
 package com.coconut.service
 
 import android.accessibilityservice.AccessibilityService
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
+import android.os.Build
 import android.os.SystemClock
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -12,6 +15,8 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Button
 import android.widget.TextView
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.coconut.R
 import com.coconut.data.AppDatabase
 import com.coconut.ui.BlockedAppActivity
@@ -40,13 +45,18 @@ class SnapAccessibilityService : AccessibilityService() {
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val snappedPackages = ConcurrentHashMap.newKeySet<String>()
+    private val lastNotificationTime = ConcurrentHashMap<String, Long>()
     private lateinit var windowManager: WindowManager
+    private lateinit var notificationManager: NotificationManager
 
     private var activeOverlayView: View? = null
     private var lastBlockedPackage: String? = null
     private var lastBlockedTime: Long = 0L
 
     companion object {
+        private const val NOTIFICATION_CHANNEL_ID = "coconut_snap_enforcement"
+        private const val NOTIFICATION_RATE_LIMIT_MS = 10_000L // 10 seconds per package
+
         private val _isRunning = MutableStateFlow(false)
         val isRunning = _isRunning.asStateFlow()
     }
@@ -55,6 +65,8 @@ class SnapAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         _isRunning.value = true
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        createNotificationChannel()
 
         // Continuously synchronize in-memory snapped package set with local Room database
         serviceScope.launch(Dispatchers.IO) {
@@ -103,34 +115,67 @@ class SnapAccessibilityService : AccessibilityService() {
 
     private fun handleSnappedPackageForeground(packageName: String) {
         val now = SystemClock.elapsedRealtime()
-        // Debounce rapid redundant window state events for the SAME in-progress launch within 250ms
-        if (packageName == lastBlockedPackage && (now - lastBlockedTime) < 250) {
+        // Debounce rapid redundant window state events for the SAME in-progress launch within 300ms
+        if (packageName == lastBlockedPackage && (now - lastBlockedTime) < 300) {
             return
         }
         lastBlockedPackage = packageName
         lastBlockedTime = now
 
         // Step 1: Immediately take user Home with zero artificial latency
-        performGlobalAction(GLOBAL_ACTION_HOME)
+        val homeSuccess = performGlobalAction(GLOBAL_ACTION_HOME)
 
-        // Step 2: Present dedicated minimal BlockedAppActivity
-        val appLabel = getAppLabel(packageName)
-        val intent = Intent(this, BlockedAppActivity::class.java).apply {
-            addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                        Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
-            )
-            putExtra(BlockedAppActivity.EXTRA_PACKAGE_NAME, packageName)
-            putExtra(BlockedAppActivity.EXTRA_APP_LABEL, appLabel)
+        // Step 2: Post rate-limited notification (low noise channel, does not open Coconut UI)
+        postBlockedNotification(packageName)
+
+        // Step 3: Only if Home action failed, use fallback overlay
+        if (!homeSuccess) {
+            val appLabel = getAppLabel(packageName)
+            showAccessibilityOverlay(packageName, appLabel)
         }
+    }
+
+    private fun postBlockedNotification(packageName: String) {
+        val now = SystemClock.elapsedRealtime()
+        val lastTime = lastNotificationTime[packageName] ?: 0L
+        if (now - lastTime < NOTIFICATION_RATE_LIMIT_MS) {
+            return
+        }
+        lastNotificationTime[packageName] = now
+
+        val appLabel = getAppLabel(packageName)
+        val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_app_icon)
+            .setContentTitle("Coconut Snap")
+            .setContentText("$appLabel is snapped and can't be launched.")
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setAutoCancel(true)
+            .setSilent(true)
+            .build()
 
         try {
-            startActivity(intent)
-        } catch (_: Exception) {
-            // Fallback: If system rejects Activity launch from background, use Accessibility Overlay
-            showAccessibilityOverlay(packageName, appLabel)
+            // Stable notification ID derived from package name hash
+            val notifId = 3000 + (packageName.hashCode() and 0x7FFF)
+            notificationManager.notify(notifId, notification)
+        } catch (_: SecurityException) {
+            // Permission denied on Android 13+; blocking still proceeds silently
+        }
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                NOTIFICATION_CHANNEL_ID,
+                "Snap Enforcement",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Notifications when a snapped application is blocked"
+                enableLights(false)
+                enableVibration(false)
+                setShowBadge(false)
+            }
+            notificationManager.createNotificationChannel(channel)
         }
     }
 

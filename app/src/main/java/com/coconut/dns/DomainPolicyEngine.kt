@@ -139,7 +139,7 @@ class DomainPolicyEngine {
          */
         fun normalizeDomain(input: String): String? {
             val trimmed = input.trim().lowercase(Locale.ROOT)
-            if (trimmed.isEmpty()) return null
+            if (trimmed.isEmpty() || trimmed.contains('/') || trimmed.contains(':') || trimmed.contains('?')) return null
 
             val withoutTrailingDot = if (trimmed.endsWith('.')) {
                 trimmed.dropLast(1)

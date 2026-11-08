@@ -111,5 +111,20 @@
                 <data android:scheme="package" />
             </intent-filter>
         </receiver>
+
+        <!-- Persistent Nightly DNS Schedule Receiver -->
+        <receiver
+            android:name=".dns.DnsScheduleReceiver"
+            android:directBootAware="false"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="com.coconut.action.DNS_SCHEDULE_BOUNDARY" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

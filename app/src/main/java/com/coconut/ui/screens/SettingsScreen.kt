@@ -4,11 +4,12 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.net.VpnService
 import android.provider.Settings
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,26 +18,27 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -48,11 +50,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.coconut.ui.AppThemeMode
 import com.coconut.ui.CoconutColors
 import com.coconut.ui.MainViewModel
+import com.coconut.ui.ThemePreferences
+import com.coconut.ui.components.GlassStatusBadge
 import kotlinx.coroutines.launch
 
 @Composable
@@ -60,459 +66,388 @@ fun SettingsScreen(viewModel: MainViewModel) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val scrollState = rememberScrollState()
 
-    var showPasscodeSetupDialog by remember { mutableStateOf(false) }
-    var showUnlockDialog by remember { mutableStateOf(false) }
+    val currentThemeMode by ThemePreferences.themeModeFlow.collectAsState()
+
     var showImportDialog by remember { mutableStateOf(false) }
+    var importText by remember { mutableStateOf("") }
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp)
-            .padding(bottom = 80.dp)
+            .padding(horizontal = 20.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Settings",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // --- 1. SYSTEM PERMISSIONS ---
-        Text(
-            text = "System Permissions",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(0.5.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                // Accessibility
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Accessibility Service",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = if (state.isAccessibilityGranted) "Active • Enforcing Snap" else "Required for Snap",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (state.isAccessibilityGranted) CoconutColors.ProtectedGreen else CoconutColors.AwaitingAmber
-                        )
-                    }
-                    if (!state.isAccessibilityGranted) {
-                        OutlinedButton(
-                            onClick = {
-                                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                            },
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text("Open", style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                }
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
-
-                // VPN Permission
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Local DNS VPN",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = if (state.isVpnRunning) "Active • Local filter running" else "Configured",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (state.isVpnRunning) CoconutColors.ProtectedGreen else MaterialTheme.colorScheme.outline
-                        )
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            val intent = Intent(Settings.ACTION_VPN_SETTINGS)
-                            try {
-                                context.startActivity(intent)
-                            } catch (_: Exception) {
-                                Toast.makeText(context, "VPN Settings not directly accessible", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("VPN Settings", style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-            }
+        // 1. Header
+        item(key = "settings_header") {
+            Text(
+                text = "Settings",
+                style = MaterialTheme.typography.displayMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // 2. Security Section
+        item(key = "security_section") {
+            SectionHeader(title = "Security", icon = Icons.Default.Security)
+            Spacer(modifier = Modifier.height(8.dp))
 
-        // --- 2. STRICT MODE ---
-        Text(
-            text = "Strict Mode",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(0.5.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Policy Lock",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Requires passcode and delay to modify rules or disable protection",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                    }
-                    Switch(
-                        checked = state.strictModeConfig?.isEnabled ?: false,
-                        onCheckedChange = { enable ->
-                            if (enable) {
-                                showPasscodeSetupDialog = true
-                            } else {
-                                viewModel.setStrictMode(false)
-                            }
-                        }
-                    )
-                }
-
-                if (state.strictModeConfig?.isEnabled == true) {
-                    Spacer(modifier = Modifier.height(10.dp))
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                shadowElevation = 0.5.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    // App Lock Toggle
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = "Unlock delay: 15 minutes",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-
-                        TextButton(onClick = { showUnlockDialog = true }) {
-                            Text("Request Unlock", style = MaterialTheme.typography.labelMedium)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "App Lock",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Biometric or device PIN on open",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
+                        Switch(
+                            checked = state.isAppLockEnabled,
+                            onCheckedChange = viewModel::toggleAppLockEnabled,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = CoconutColors.CocoaPrimary
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Lock Coconut Now Button
+                    Button(
+                        onClick = viewModel::lockCoconut,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = CoconutColors.CocoaPrimary,
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(vertical = 12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Lock",
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Lock Coconut", style = MaterialTheme.typography.labelMedium)
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Device Admin Status
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                text = "Device Admin",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Removal protection friction",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        GlassStatusBadge(
+                            text = "Active",
+                            statusColor = CoconutColors.SuccessLight
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Accessibility Status
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                text = "Accessibility",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Required for Snap",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        GlassStatusBadge(
+                            text = if (state.isAccessibilityGranted) "Active" else "Inactive",
+                            statusColor = if (state.isAccessibilityGranted) CoconutColors.SuccessLight else CoconutColors.ErrorLight
+                        )
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // 3. Appearance Section
+        item(key = "appearance_section") {
+            SectionHeader(title = "Appearance", icon = Icons.Default.Palette)
+            Spacer(modifier = Modifier.height(8.dp))
 
-        // --- 3. DNS UPDATE PREFERENCES ---
-        Text(
-            text = "Blocklist Updates",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(0.5.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Wi-Fi Only Updates",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Switch(
-                        checked = state.dnsConfig?.wifiOnly ?: true,
-                        onCheckedChange = { viewModel.updateDnsConfiguration(wifiOnly = it) }
-                    )
-                }
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Automatic Updates",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Switch(
-                        checked = state.dnsConfig?.autoUpdate ?: true,
-                        onCheckedChange = { viewModel.updateDnsConfiguration(autoUpdate = it) }
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // --- 4. BACKUP & RULES ---
-        Text(
-            text = "Custom Rules Backup",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(0.5.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                shadowElevation = 0.5.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                OutlinedButton(
-                    onClick = {
-                        scope.launch {
-                            val text = viewModel.exportRules()
-                            val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            cb.setPrimaryClip(ClipData.newPlainText("Coconut Rules", text))
-                            Toast.makeText(context, "Rules copied to clipboard", Toast.LENGTH_SHORT).show()
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Text(
+                        text = "Theme",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        AppThemeMode.values().forEach { mode ->
+                            val isSelected = currentThemeMode == mode
+                            val label = when (mode) {
+                                AppThemeMode.SYSTEM -> "System"
+                                AppThemeMode.LIGHT -> "Light"
+                                AppThemeMode.DARK -> "Dark"
+                            }
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { viewModel.themePreferences.setThemeMode(mode) },
+                                label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = CoconutColors.CocoaPrimary,
+                                    selectedLabelColor = Color.White
+                                )
+                            )
                         }
-                    },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(imageVector = Icons.Default.Upload, contentDescription = "Export", modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Export", style = MaterialTheme.typography.labelMedium)
-                }
-
-                OutlinedButton(
-                    onClick = { showImportDialog = true },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(imageVector = Icons.Default.Download, contentDescription = "Import", modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Import", style = MaterialTheme.typography.labelMedium)
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // 4. DNS Rules Management & Backup Section
+        item(key = "dns_rules_section") {
+            SectionHeader(title = "DNS Backup & Updates", icon = Icons.Default.Shield)
+            Spacer(modifier = Modifier.height(8.dp))
 
-        // --- 5. PRIVACY & APP INFO ---
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(0.5.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Privacy Architecture",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "100% on-device local processing. Zero cloud accounts, zero telemetry, zero analytics tracking.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                shadowElevation = 0.5.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    // Wi-Fi Only Updates
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Wi-Fi Only Updates",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Prevent mobile data consumption",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = state.dnsConfig?.wifiOnly ?: true,
+                            onCheckedChange = { viewModel.updateDnsConfiguration(wifiOnly = it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = CoconutColors.CocoaPrimary
+                            )
+                        )
+                    }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Version", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-                    Text("2.0.0 (3)", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Export Rules Button
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    val text = viewModel.exportRules()
+                                    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    cm.setPrimaryClip(ClipData.newPlainText("Coconut Rules", text))
+                                    Toast.makeText(context, "Rules copied to clipboard", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.Download, contentDescription = "Export", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Export", style = MaterialTheme.typography.labelSmall)
+                        }
+
+                        // Import Rules Button
+                        OutlinedButton(
+                            onClick = { showImportDialog = true },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.Upload, contentDescription = "Import", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Import", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
                 }
             }
         }
-    }
 
-    // Passcode Setup Dialog
-    if (showPasscodeSetupDialog) {
-        var passcode by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showPasscodeSetupDialog = false },
-            title = { Text("Set Strict Mode Passcode", style = MaterialTheme.typography.titleMedium) },
-            text = {
-                OutlinedTextField(
-                    value = passcode,
-                    onValueChange = { passcode = it },
-                    label = { Text("Passcode") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.setStrictMode(true, passcode)
-                        showPasscodeSetupDialog = false
-                    },
-                    enabled = passcode.isNotBlank()
-                ) {
-                    Text("Enable")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showPasscodeSetupDialog = false }) {
-                    Text("Cancel")
+        // 5. Application Details Section
+        item(key = "app_details_section") {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Text(
+                        text = "Coconut",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Version 2.0.0 (3) • Target Android 16 (API 36)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Local-first self-control. Zero remote telemetry.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
-        )
-    }
-
-    // Unlock Dialog
-    if (showUnlockDialog) {
-        val config = state.strictModeConfig
-        val now = System.currentTimeMillis()
-        val requestTime = config?.unlockRequestTimestamp ?: 0L
-        val delayMillis = (config?.unlockDelayMinutes ?: 15) * 60 * 1000L
-        val isReady = requestTime > 0 && now >= requestTime + delayMillis
-        val remainingMinutes = if (requestTime > 0 && !isReady) {
-            ((requestTime + delayMillis - now) / 60000L).coerceAtLeast(1)
-        } else 0L
-
-        AlertDialog(
-            onDismissRequest = { showUnlockDialog = false },
-            title = { Text("Strict Mode Unlock", style = MaterialTheme.typography.titleMedium) },
-            text = {
-                Column {
-                    if (requestTime == 0L) {
-                        Text(
-                            text = "Requesting unlock starts a 15-minute countdown before Settings access is temporarily granted.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    } else if (!isReady) {
-                        Text(
-                            text = "Countdown active: $remainingMinutes minutes remaining before temporary access unlocks.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = CoconutColors.AwaitingAmber
-                        )
-                    } else {
-                        Text(
-                            text = "Countdown completed. Tap Confirm to open a 15-minute Settings window.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = CoconutColors.ProtectedGreen
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                if (requestTime == 0L) {
-                    Button(onClick = {
-                        viewModel.startUnlockCountdown()
-                        showUnlockDialog = false
-                    }) {
-                        Text("Start 15m Countdown")
-                    }
-                } else if (isReady) {
-                    Button(onClick = {
-                        viewModel.completeUnlock()
-                        showUnlockDialog = false
-                    }) {
-                        Text("Open 15m Window")
-                    }
-                } else {
-                    Button(onClick = {
-                        viewModel.cancelUnlock()
-                        showUnlockDialog = false
-                    }) {
-                        Text("Cancel Countdown")
-                    }
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showUnlockDialog = false }) {
-                    Text("Close")
-                }
-            }
-        )
+        }
     }
 
     // Import Dialog
     if (showImportDialog) {
-        var importText by remember { mutableStateOf("") }
         AlertDialog(
-            onDismissRequest = { showImportDialog = false },
-            title = { Text("Import Domain Rules", style = MaterialTheme.typography.titleMedium) },
-            text = {
-                OutlinedTextField(
-                    value = importText,
-                    onValueChange = { importText = it },
-                    placeholder = { Text("Paste exported rules or list of domains...") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
+            onDismissRequest = {
+                showImportDialog = false
+                importText = ""
+            },
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Text(
+                    text = "Import Domain Rules",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
                 )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Paste plain-text rules with format:\nBLOCK: example.com\nALLOW: domain.org",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = importText,
+                        onValueChange = { importText = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 8,
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                }
             },
             confirmButton = {
                 Button(
                     onClick = {
                         scope.launch {
                             val (imported, invalid) = viewModel.importRules(importText)
-                            Toast.makeText(context, "Imported $imported rules ($invalid invalid)", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Imported $imported rules ($invalid skipped)", Toast.LENGTH_SHORT).show()
                             showImportDialog = false
+                            importText = ""
                         }
                     },
-                    enabled = importText.isNotBlank()
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CoconutColors.CocoaPrimary,
+                        contentColor = Color.White
+                    )
                 ) {
                     Text("Import")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showImportDialog = false }) {
+                TextButton(
+                    onClick = {
+                        showImportDialog = false
+                        importText = ""
+                    }
+                ) {
                     Text("Cancel")
                 }
             }
+        )
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = icon,
+            contentDescription = title,
+            tint = CoconutColors.CocoaPrimary,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
         )
     }
 }
