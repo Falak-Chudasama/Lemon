@@ -77,6 +77,13 @@ class SnapAccessibilityService : AccessibilityService() {
                 snappedPackages.addAll(active)
             }
         }
+
+        // Also synchronize Quarantine temporarily restricted packages
+        serviceScope.launch(Dispatchers.IO) {
+            com.coconut.policy.QuarantineManager.getInstance(applicationContext).quarantinedPackages.collectLatest {
+                // Reactive observation keeps Quarantine app restriction active
+            }
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -98,9 +105,12 @@ class SnapAccessibilityService : AccessibilityService() {
             return
         }
 
-        // Deterministic Snap enforcement: check if foreground package is on user's blocked list
-        if (snappedPackages.contains(eventPackage)) {
-            handleSnappedPackageForeground(eventPackage)
+        // Deterministic Snap or Quarantine enforcement
+        val isSnapped = snappedPackages.contains(eventPackage)
+        val isQuarantined = com.coconut.policy.QuarantineManager.getInstance(applicationContext).isAppQuarantined(eventPackage)
+
+        if (isSnapped || isQuarantined) {
+            handleSnappedPackageForeground(eventPackage, isQuarantined = isQuarantined)
             return
         }
 
@@ -113,7 +123,7 @@ class SnapAccessibilityService : AccessibilityService() {
         removeOverlayIfPresent()
     }
 
-    private fun handleSnappedPackageForeground(packageName: String) {
+    private fun handleSnappedPackageForeground(packageName: String, isQuarantined: Boolean = false) {
         val now = SystemClock.elapsedRealtime()
         // Debounce rapid redundant window state events for the SAME in-progress launch within 300ms
         if (packageName == lastBlockedPackage && (now - lastBlockedTime) < 300) {
@@ -125,8 +135,8 @@ class SnapAccessibilityService : AccessibilityService() {
         // Step 1: Immediately take user Home with zero artificial latency
         val homeSuccess = performGlobalAction(GLOBAL_ACTION_HOME)
 
-        // Step 2: Post rate-limited notification (low noise channel, does not open Coconut UI)
-        postBlockedNotification(packageName)
+        // Step 2: Post rate-limited notification
+        postBlockedNotification(packageName, isQuarantined)
 
         // Step 3: Only if Home action failed, use fallback overlay
         if (!homeSuccess) {
@@ -135,7 +145,7 @@ class SnapAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun postBlockedNotification(packageName: String) {
+    private fun postBlockedNotification(packageName: String, isQuarantined: Boolean = false) {
         val now = SystemClock.elapsedRealtime()
         val lastTime = lastNotificationTime[packageName] ?: 0L
         if (now - lastTime < NOTIFICATION_RATE_LIMIT_MS) {
@@ -144,10 +154,17 @@ class SnapAccessibilityService : AccessibilityService() {
         lastNotificationTime[packageName] = now
 
         val appLabel = getAppLabel(packageName)
+        val title = if (isQuarantined) "Lemon Quarantine" else "Lemon Snap"
+        val message = if (isQuarantined) {
+            "$appLabel is quarantined and temporarily blocked."
+        } else {
+            "$appLabel is snapped and can't be launched."
+        }
+
         val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_app_icon)
-            .setContentTitle("Lemon Snap")
-            .setContentText("$appLabel is snapped and can't be launched.")
+            .setContentTitle(title)
+            .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setAutoCancel(true)

@@ -19,9 +19,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         StrictModeConfigEntity::class,
         DomainChangeRequestEntity::class,
         DnsScheduleEntity::class,
-        AppCategoryOverrideEntity::class
+        AppCategoryOverrideEntity::class,
+        QuarantineEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -36,6 +37,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun domainChangeRequestDao(): DomainChangeRequestDao
     abstract fun dnsScheduleDao(): DnsScheduleDao
     abstract fun appCategoryOverrideDao(): AppCategoryOverrideDao
+    abstract fun quarantineDao(): QuarantineDao
 
     companion object {
         @Volatile
@@ -252,16 +254,60 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Add manualDnsEnabled, manualDnsConfirmed, and upstream configurations to dns_configuration
+                db.execSQL("ALTER TABLE dns_configuration ADD COLUMN manualDnsEnabled INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE dns_configuration ADD COLUMN manualDnsConfirmed INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE dns_configuration ADD COLUMN primaryUpstream TEXT NOT NULL DEFAULT 'SYSTEM'")
+                db.execSQL("ALTER TABLE dns_configuration ADD COLUMN secondaryUpstream TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE dns_configuration ADD COLUMN customUpstreamEndpoint TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE dns_configuration ADD COLUMN upstreamProtocol TEXT NOT NULL DEFAULT 'SYSTEM'")
+
+                // Conservative migration: do not blindly infer intent from ambiguous runtime dnsEnabled.
+                // If legacy dnsEnabled was 1, maintain protection conservatively (manualDnsEnabled = 1),
+                // but mark manualDnsConfirmed = 0 so the user is given a transparent one-time prompt.
+                // If legacy dnsEnabled was 0, user already had DNS off, so manualDnsConfirmed = 1.
+                db.execSQL("UPDATE dns_configuration SET manualDnsEnabled = CASE WHEN dnsEnabled = 1 THEN 1 ELSE 0 END")
+                db.execSQL("UPDATE dns_configuration SET manualDnsConfirmed = CASE WHEN dnsEnabled = 1 THEN 0 ELSE 1 END")
+
+                // 2. Create quarantine_state table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS quarantine_state (
+                        id INTEGER PRIMARY KEY NOT NULL,
+                        isActive INTEGER NOT NULL DEFAULT 0,
+                        startTimeEpochMillis INTEGER NOT NULL DEFAULT 0,
+                        durationMinutes INTEGER NOT NULL DEFAULT 30,
+                        endTimeEpochMillis INTEGER NOT NULL DEFAULT 0,
+                        bootCountAtStart INTEGER NOT NULL DEFAULT 0,
+                        elapsedRealtimeAtStart INTEGER NOT NULL DEFAULT 0,
+                        selectedPackages TEXT NOT NULL DEFAULT '',
+                        lastEvaluatedEpochMillis INTEGER NOT NULL DEFAULT 0
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    INSERT OR IGNORE INTO quarantine_state (id, isActive, startTimeEpochMillis, durationMinutes, endTimeEpochMillis, bootCountAtStart, elapsedRealtimeAtStart, selectedPackages, lastEvaluatedEpochMillis)
+                    VALUES (1, 0, 0, 30, 0, 0, 0, '', 0)
+                """.trimIndent())
+            }
+        }
+
         fun get(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    "coconut_snap.db"
-                )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
-                    .build()
-                    .also { INSTANCE = it }
+                INSTANCE ?: run {
+                    val appContext = context.applicationContext
+                    // Create non-destructive pre-migration backup before opening or migrating database
+                    DatabaseBackupManager.createPreMigrationBackupIfNeeded(appContext)
+
+                    Room.databaseBuilder(
+                        appContext,
+                        AppDatabase::class.java,
+                        "coconut_snap.db"
+                    )
+                        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                        .build()
+                        .also { INSTANCE = it }
+                }
             }
         }
     }

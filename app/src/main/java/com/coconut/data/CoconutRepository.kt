@@ -240,6 +240,15 @@ class CoconutRepository(context: Context) {
         )
     }
 
+    suspend fun updateUpstreamConfiguration(
+        primary: String,
+        secondary: String,
+        custom: String,
+        protocol: String
+    ) = withContext(Dispatchers.IO) {
+        dnsConfigDao.updateUpstreamConfig(primary, secondary, custom, protocol)
+    }
+
     suspend fun setDnsServiceEnabled(enabled: Boolean) {
         if (enabled) {
             CoconutVpnService.start(appContext)

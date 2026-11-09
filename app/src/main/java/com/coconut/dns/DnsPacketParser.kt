@@ -870,4 +870,36 @@ object DnsPacketParser {
             }
         }
     }
+
+    /**
+     * Builds a standard A-record DNS query for testing upstream connectivity.
+     */
+    fun buildTestDnsQuery(domain: String, txId: Int = 0x1234): ByteArray {
+        val out = ByteArrayOutputStream()
+        out.write((txId shr 8) and 0xFF)
+        out.write(txId and 0xFF)
+        out.write(0x01) // RD = 1
+        out.write(0x00)
+        out.write(0x00) // QDCOUNT = 1
+        out.write(0x01)
+        out.write(0x00) // ANCOUNT = 0
+        out.write(0x00)
+        out.write(0x00) // NSCOUNT = 0
+        out.write(0x00)
+        out.write(0x00) // ARCOUNT = 0
+        out.write(0x00)
+
+        for (part in domain.split(".")) {
+            if (part.isEmpty()) continue
+            val bytes = part.toByteArray(Charsets.US_ASCII)
+            out.write(bytes.size)
+            out.write(bytes)
+        }
+        out.write(0)
+        out.write(0x00) // QTYPE = 1 (A)
+        out.write(0x01)
+        out.write(0x00) // QCLASS = 1 (IN)
+        out.write(0x01)
+        return out.toByteArray()
+    }
 }

@@ -31,10 +31,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -43,6 +45,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -67,6 +71,8 @@ import androidx.fragment.app.FragmentActivity
 import com.coconut.data.DomainChangeOperation
 import com.coconut.data.DomainChangeRequestEntity
 import com.coconut.data.DomainRuleEntity
+import com.coconut.dns.DnsUpstreamPresets
+import com.coconut.policy.VpnRuntimeState
 import com.coconut.ui.LemonTheme
 import com.coconut.ui.MainViewModel
 import com.coconut.ui.components.LemonBadge
@@ -108,12 +114,21 @@ fun DnsScreen(viewModel: MainViewModel) {
         else currentRules.filter { it.domain.contains(state.domainFilterQuery, ignoreCase = true) }
     }
 
-    // Determine authoritative high-level status
-    val (statusLabel, statusStyle) = when {
-        state.isVpnRunning -> "Protected" to LemonBadgeStyle.SUCCESS
-        state.isInsideNightSchedule -> "Scheduled" to LemonBadgeStyle.SCHEDULED
-        else -> "Off" to LemonBadgeStyle.INACTIVE
+    // Determine authoritative high-level status with genuine runtime verification
+    val (statusLabel, statusStyle) = when (state.vpnRuntimeState) {
+        VpnRuntimeState.PROTECTED -> "Protected" to LemonBadgeStyle.SUCCESS
+        VpnRuntimeState.STARTING, VpnRuntimeState.RECOVERING -> "Starting" to LemonBadgeStyle.INFO
+        VpnRuntimeState.REVOKED -> "Revoked" to LemonBadgeStyle.DANGER
+        VpnRuntimeState.FAILED -> "Failed" to LemonBadgeStyle.DANGER
+        VpnRuntimeState.RUNNING -> "Tunnel Open" to LemonBadgeStyle.INFO
+        else -> {
+            if (state.isInsideNightSchedule) "Scheduled" to LemonBadgeStyle.SCHEDULED
+            else if (state.isQuarantineActive) "Quarantine" to LemonBadgeStyle.SCHEDULED
+            else "Off" to LemonBadgeStyle.INACTIVE
+        }
     }
+
+    var showUpstreamDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier
@@ -127,14 +142,14 @@ fun DnsScreen(viewModel: MainViewModel) {
             Spacer(modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars))
         }
 
-        // 1. Page Header with Single Clear Status Hierarchy
+        // 1. Page Header with Single Clear Status Hierarchy (Responsive, no text wrapping)
         item(key = "dns_header") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f, fill = false)) {
                     Text(
                         text = "DNS Protection",
                         style = LemonTheme.typography.displayLarge.copy(
@@ -145,9 +160,15 @@ fun DnsScreen(viewModel: MainViewModel) {
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = if (state.isVpnRunning) "Encrypted local loopback active"
-                        else if (state.isInsideNightSchedule) "Enforced by nightly schedule"
-                        else "Protection is currently disabled",
+                        text = when (state.vpnRuntimeState) {
+                            VpnRuntimeState.PROTECTED -> "On-device packet filter operational"
+                            VpnRuntimeState.STARTING, VpnRuntimeState.RECOVERING -> "Connecting local DNS tunnel..."
+                            VpnRuntimeState.REVOKED -> "VPN consent revoked by Android system"
+                            VpnRuntimeState.FAILED -> "Tunnel establishment failed"
+                            else -> if (state.isInsideNightSchedule) "Enforced by nightly schedule (23:00–06:00)"
+                            else if (state.isQuarantineActive) "Enforced by active Quarantine session"
+                            else "Protection is currently disabled"
+                        },
                         style = LemonTheme.typography.bodyMedium.copy(fontSize = 15.sp),
                         color = LemonTheme.colors.textSecondary
                     )
@@ -156,13 +177,133 @@ fun DnsScreen(viewModel: MainViewModel) {
                 LemonBadge(
                     text = statusLabel,
                     style = statusStyle,
-                    showDot = true
+                    showDot = true,
+                    modifier = Modifier.padding(start = 8.dp)
                 )
             }
         }
 
-        // 2. Master DNS Filtering Switch Card
+        // 2. VPN Revocation / Deletion Recovery Card (Requirement 6)
+        if (state.vpnRuntimeState == VpnRuntimeState.REVOKED) {
+            item(key = "vpn_recovery_card") {
+                Surface(
+                    shape = LemonTheme.shapes.card,
+                    color = LemonTheme.colors.dangerContainer,
+                    border = BorderStroke(1.dp, LemonTheme.colors.danger.copy(alpha = 0.45f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = LemonTheme.colors.danger,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "VPN Consent Required",
+                                style = LemonTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = LemonTheme.colors.onDangerContainer
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Lemon's VPN configuration was deleted or consent revoked in Android Settings. Re-grant permission to restore encrypted on-device filtering.",
+                            style = LemonTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                            color = LemonTheme.colors.onDangerContainer.copy(alpha = 0.9f)
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Button(
+                            onClick = {
+                                val prepareIntent = VpnService.prepare(context)
+                                if (prepareIntent != null) {
+                                    vpnPrepareLauncher.launch(prepareIntent)
+                                } else {
+                                    viewModel.toggleDns(true)
+                                }
+                            },
+                            shape = LemonTheme.shapes.button,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = LemonTheme.colors.danger,
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text(
+                                text = "Restore Protection",
+                                style = LemonTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2.5 One-time Upgrade Confirmation Card (if not yet confirmed)
+        if (!state.manualDnsConfirmed) {
+            item(key = "one_time_confirmation_card") {
+                Surface(
+                    shape = LemonTheme.shapes.card,
+                    color = LemonTheme.colors.cardBackground,
+                    border = BorderStroke(1.dp, LemonTheme.colors.primaryAccent),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.Shield,
+                                contentDescription = null,
+                                tint = LemonTheme.colors.primaryAccent,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Confirm Daytime Protection",
+                                style = LemonTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = LemonTheme.colors.textPrimary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Lemon is upgrading your DNS engine. Would you like DNS protection active 24/7 or only during your scheduled nightly hours (11:00 PM – 6:00 AM)?",
+                            style = LemonTheme.typography.bodySmall,
+                            color = LemonTheme.colors.textSecondary
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = { viewModel.confirmManualDnsPreference(true) },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = LemonTheme.colors.primaryAccent)
+                            ) {
+                                Text("Always On (24/7)", style = LemonTheme.typography.labelSmall)
+                            }
+                            OutlinedButton(
+                                onClick = { viewModel.confirmManualDnsPreference(false) },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Night Only", style = LemonTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Master DNS Filtering Switch Card (Separate Intent from Runtime Status)
         item(key = "master_dns_card") {
+            val isLockedOn = state.isInsideNightSchedule || state.isQuarantineActive
+            val isChecked = state.manualDnsPreference || state.effectiveDnsDesired || state.isVpnRunning
+
             Surface(
                 shape = LemonTheme.shapes.card,
                 color = LemonTheme.colors.cardBackground,
@@ -186,9 +327,10 @@ fun DnsScreen(viewModel: MainViewModel) {
                             color = LemonTheme.colors.textPrimary
                         )
                         Spacer(modifier = Modifier.height(4.dp))
-                        if (state.isInsideNightSchedule) {
+                        if (isLockedOn) {
+                            val reason = if (state.isQuarantineActive) "Quarantine is active" else "Night schedule active (11:00 PM – 6:00 AM)"
                             Text(
-                                text = "Locked: Night schedule active (11:00 PM – 6:00 AM)",
+                                text = "Locked ON: $reason",
                                 style = LemonTheme.typography.bodySmall.copy(
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium
@@ -197,7 +339,7 @@ fun DnsScreen(viewModel: MainViewModel) {
                             )
                         } else {
                             Text(
-                                text = "Filters domain traffic entirely on device",
+                                text = "User preference: filtering ${if (state.manualDnsPreference) "Enabled" else "Disabled"}",
                                 style = LemonTheme.typography.bodySmall.copy(fontSize = 13.sp),
                                 color = LemonTheme.colors.textSecondary
                             )
@@ -207,7 +349,7 @@ fun DnsScreen(viewModel: MainViewModel) {
                     Spacer(modifier = Modifier.width(16.dp))
 
                     LemonSwitch(
-                        checked = state.isVpnRunning,
+                        checked = isChecked,
                         onCheckedChange = { checked ->
                             if (checked) {
                                 val prepareIntent = VpnService.prepare(context)
@@ -220,7 +362,7 @@ fun DnsScreen(viewModel: MainViewModel) {
                                 viewModel.toggleDns(false)
                             }
                         },
-                        enabled = !state.isInsideNightSchedule
+                        enabled = !isLockedOn
                     )
                 }
             }
@@ -364,7 +506,86 @@ fun DnsScreen(viewModel: MainViewModel) {
             }
         }
 
-        // 5. Pending Changes Queue Card (Exact 30-Day Delay)
+        // 5. Upstream DNS Provider Card (Requirement 7 / Part 9)
+        item(key = "upstream_dns_card") {
+            val currentUpstreamId = state.dnsConfig?.primaryUpstream ?: "SYSTEM"
+            val preset = DnsUpstreamPresets.getPreset(currentUpstreamId)
+            val customEndpoint = state.dnsConfig?.customUpstreamEndpoint ?: ""
+
+            Surface(
+                shape = LemonTheme.shapes.card,
+                color = LemonTheme.colors.cardBackground,
+                border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(LemonTheme.colors.primaryAccent.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Dns,
+                                    contentDescription = null,
+                                    tint = LemonTheme.colors.textAccent,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Upstream DNS",
+                                style = LemonTheme.typography.titleMedium.copy(
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = LemonTheme.colors.textPrimary
+                            )
+                        }
+
+                        Button(
+                            onClick = { showUpstreamDialog = true },
+                            shape = LemonTheme.shapes.button,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = LemonTheme.colors.primaryAccent,
+                                contentColor = LemonTheme.colors.onPrimaryAccent
+                            ),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "Configure",
+                                style = LemonTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = if (currentUpstreamId == "CUSTOM") "Custom: $customEndpoint" else preset.displayName,
+                        style = LemonTheme.typography.bodyLarge.copy(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = LemonTheme.colors.textPrimary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = if (currentUpstreamId == "CUSTOM") "Custom encrypted/standard upstream resolver" else preset.description,
+                        style = LemonTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                        color = LemonTheme.colors.textSecondary
+                    )
+                }
+            }
+        }
+
+        // 6. Pending Changes Queue Card (Exact 30-Day Delay)
         if (state.pendingDomainRequests.isNotEmpty()) {
             item(key = "pending_changes_card") {
                 Surface(
@@ -653,6 +874,115 @@ fun DnsScreen(viewModel: MainViewModel) {
                         style = LemonTheme.typography.labelMedium,
                         color = LemonTheme.colors.textSecondary
                     )
+                }
+            }
+        )
+    }
+
+    // Upstream DNS Configuration Dialog
+    if (showUpstreamDialog) {
+        val currentPresetId = state.dnsConfig?.primaryUpstream ?: "SYSTEM"
+        var selectedPresetId by remember { mutableStateOf(currentPresetId) }
+        var customEndpointInput by remember { mutableStateOf(state.dnsConfig?.customUpstreamEndpoint ?: "") }
+
+        AlertDialog(
+            onDismissRequest = { showUpstreamDialog = false },
+            shape = LemonTheme.shapes.dialog,
+            containerColor = LemonTheme.colors.cardBackground,
+            title = {
+                Text(
+                    text = "Select Upstream DNS",
+                    style = LemonTheme.typography.titleLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
+                    color = LemonTheme.colors.textPrimary
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    DnsUpstreamPresets.PRESETS.forEach { preset ->
+                        val isSelected = selectedPresetId == preset.id
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { selectedPresetId = preset.id }
+                                .padding(vertical = 4.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { selectedPresetId = preset.id },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = LemonTheme.colors.primaryAccent
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = preset.displayName,
+                                    style = LemonTheme.typography.titleSmall.copy(
+                                        fontSize = 15.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    ),
+                                    color = LemonTheme.colors.textPrimary
+                                )
+                                Text(
+                                    text = preset.description,
+                                    style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                    color = LemonTheme.colors.textSecondary
+                                )
+                            }
+                        }
+                    }
+
+                    if (selectedPresetId == "CUSTOM") {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        OutlinedTextField(
+                            value = customEndpointInput,
+                            onValueChange = { customEndpointInput = it },
+                            label = { Text("Server IP address") },
+                            placeholder = { Text("e.g. 94.140.14.14") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = LemonTheme.colors.primaryAccent,
+                                cursorColor = LemonTheme.colors.primaryAccent
+                            )
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val preset = DnsUpstreamPresets.getPreset(selectedPresetId)
+                        viewModel.updateUpstreamConfig(
+                            primary = selectedPresetId,
+                            secondary = if (selectedPresetId != "CUSTOM") preset.secondaryIp ?: "" else "",
+                            custom = customEndpointInput.trim(),
+                            protocol = "SYSTEM"
+                        )
+                        showUpstreamDialog = false
+                    },
+                    shape = LemonTheme.shapes.button,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = LemonTheme.colors.primaryAccent,
+                        contentColor = LemonTheme.colors.onPrimaryAccent
+                    )
+                ) {
+                    Text("Apply Provider", style = LemonTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showUpstreamDialog = false },
+                    shape = LemonTheme.shapes.button
+                ) {
+                    Text("Cancel", style = LemonTheme.typography.labelMedium, color = LemonTheme.colors.textSecondary)
                 }
             }
         )

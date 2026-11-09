@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coconut.ui.LemonTheme
@@ -33,6 +34,7 @@ enum class LemonBadgeStyle {
 
 /**
  * Premium semantic badge with color-matched indicator dot and high-contrast typography.
+ * Strictly guarantees single-line text without wrapping or clipping.
  */
 @Composable
 fun LemonBadge(
@@ -104,7 +106,10 @@ fun LemonBadge(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold
                 ),
-                color = foregroundColor
+                color = foregroundColor,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

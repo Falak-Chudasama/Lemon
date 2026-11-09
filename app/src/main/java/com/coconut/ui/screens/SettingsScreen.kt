@@ -166,13 +166,16 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(LemonTheme.shapes.button)
+                            .clip(RoundedCornerShape(14.dp))
                             .clickable(onClick = viewModel::lockLemon)
-                            .padding(vertical = 4.dp),
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f, fill = false)
+                        ) {
                             Box(
                                 modifier = Modifier
                                     .size(32.dp)
@@ -212,20 +215,24 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         color = LemonTheme.colors.separator
                     )
 
-                    // Accessibility Status & Direct Navigation Row
+                    // Accessibility Status & Direct Navigation Row (unclipped layout with explicit horizontal padding)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(LemonTheme.shapes.button)
+                            .clip(RoundedCornerShape(14.dp))
                             .clickable {
                                 val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                                 context.startActivity(intent)
                             }
-                            .padding(vertical = 4.dp),
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 12.dp)
+                        ) {
                             Text(
                                 text = "Accessibility",
                                 style = LemonTheme.typography.titleSmall.copy(
@@ -241,11 +248,11 @@ fun SettingsScreen(viewModel: MainViewModel) {
                                 color = LemonTheme.colors.textSecondary
                             )
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
                         LemonBadge(
                             text = if (state.isAccessibilityGranted) "Active" else "Inactive",
                             style = if (state.isAccessibilityGranted) LemonBadgeStyle.SUCCESS else LemonBadgeStyle.DANGER,
-                            showDot = true
+                            showDot = true,
+                            modifier = Modifier.padding(start = 4.dp)
                         )
                     }
                 }

@@ -53,7 +53,9 @@ class CoconutVpnService : VpnService() {
     private val dnsCache = DnsCache(maxEntries = 1024)
     private lateinit var blocklistManager: BlocklistManager
     private val dnsExecutor = Executors.newFixedThreadPool(4)
+    private val upstreamResolver = DnsUpstreamResolver(dnsExecutor)
     private val tcpSessions = ConcurrentHashMap<String, TcpDnsSession>()
+    @Volatile private var currentDnsConfig: com.coconut.data.DnsConfigurationEntity? = null
 
     private var vpnInterface: ParcelFileDescriptor? = null
     private var packetLoopJob: Job? = null
@@ -112,6 +114,7 @@ class CoconutVpnService : VpnService() {
             val configDao = db.dnsConfigurationDao()
             configDao.getConfigurationFlow().collectLatest { config ->
                 if (config != null) {
+                    currentDnsConfig = config
                     policyEngine.blockThreatsEnabled = config.blockThreats
                     policyEngine.blockAdultEnabled = config.blockAdultContent
                     policyEngine.blockAdsTrackersEnabled = config.blockAdsTrackers
@@ -173,13 +176,15 @@ class CoconutVpnService : VpnService() {
             vpnInterface = builder.establish()
             if (vpnInterface != null) {
                 _isVpnRunning.value = true
-                updateDatabaseState(enabled = true)
+                com.coconut.policy.LemonPolicyCoordinator.getInstance(this).onTunnelEstablished()
                 startPacketLoop(vpnInterface!!)
             } else {
                 stopVpnInternal()
+                com.coconut.policy.LemonPolicyCoordinator.getInstance(this).onServiceStoppedUnexpectedly()
             }
         } catch (_: Exception) {
             stopVpnInternal()
+            com.coconut.policy.LemonPolicyCoordinator.getInstance(this).onServiceStoppedUnexpectedly()
         }
     }
 
@@ -268,67 +273,49 @@ class CoconutVpnService : VpnService() {
         ipInfo: IpPacketInfo,
         tunOutStream: FileOutputStream
     ) {
-        val targetNetwork = activePhysicalNetwork
         val cm = getSystemService(ConnectivityManager::class.java)
-        val network = targetNetwork ?: cm.activeNetwork
-
-        if (network == null) {
-            sendServFail(query, ipInfo, tunOutStream)
-            return
-        }
-
-        val cancellationSignal = CancellationSignal()
-
-        try {
-            DnsResolver.getInstance().rawQuery(
-                network,
-                query.rawDnsPayload,
-                DnsResolver.FLAG_NO_CACHE_LOOKUP,
-                dnsExecutor,
-                cancellationSignal,
-                object : DnsResolver.Callback<ByteArray> {
-                    override fun onAnswer(answer: ByteArray, rcode: Int) {
-                        try {
-                            // Inspect response for CNAME targets against policy
-                            val (minTtl, cnames) = DnsPacketParser.inspectResponse(answer)
-                            var blockedByCname = false
-                            for (cname in cnames) {
-                                if (policyEngine.evaluate(cname) != PolicyDecision.ALLOW) {
-                                    blockedByCname = true
-                                    break
-                                }
-                            }
-
-                            val finalDnsPayload = if (blockedByCname) {
-                                DnsPacketParser.buildNxDomainResponse(query)
-                            } else {
-                                dnsCache.put(query.question.qname, query.question.qtype, answer, minTtl)
-                                answer
-                            }
-
-                            val responsePacket = DnsPacketParser.wrapInIpUdpPacket(
-                                dnsPayload = finalDnsPayload,
-                                srcIp = ipInfo.dstIp,
-                                dstIp = ipInfo.srcIp,
-                                srcPort = ipInfo.dstPort,
-                                dstPort = ipInfo.srcPort,
-                                isIpv6 = ipInfo.isIpv6
-                            )
-                            synchronized(tunOutStream) {
-                                tunOutStream.write(responsePacket)
-                                tunOutStream.flush()
-                            }
-                        } catch (_: Exception) {}
+        upstreamResolver.resolve(
+            query = query,
+            config = currentDnsConfig,
+            physicalNetwork = activePhysicalNetwork,
+            connectivityManager = cm,
+            onSuccess = { answer ->
+                try {
+                    // Inspect response for CNAME targets against policy
+                    val (minTtl, cnames) = DnsPacketParser.inspectResponse(answer)
+                    var blockedByCname = false
+                    for (cname in cnames) {
+                        if (policyEngine.evaluate(cname) != PolicyDecision.ALLOW) {
+                            blockedByCname = true
+                            break
+                        }
                     }
 
-                    override fun onError(error: DnsResolver.DnsException) {
-                        sendServFail(query, ipInfo, tunOutStream)
+                    val finalDnsPayload = if (blockedByCname) {
+                        DnsPacketParser.buildNxDomainResponse(query)
+                    } else {
+                        dnsCache.put(query.question.qname, query.question.qtype, answer, minTtl)
+                        answer
                     }
-                }
-            )
-        } catch (_: Exception) {
-            sendServFail(query, ipInfo, tunOutStream)
-        }
+
+                    val responsePacket = DnsPacketParser.wrapInIpUdpPacket(
+                        dnsPayload = finalDnsPayload,
+                        srcIp = ipInfo.dstIp,
+                        dstIp = ipInfo.srcIp,
+                        srcPort = ipInfo.dstPort,
+                        dstPort = ipInfo.srcPort,
+                        isIpv6 = ipInfo.isIpv6
+                    )
+                    synchronized(tunOutStream) {
+                        tunOutStream.write(responsePacket)
+                        tunOutStream.flush()
+                    }
+                } catch (_: Exception) {}
+            },
+            onError = {
+                sendServFail(query, ipInfo, tunOutStream)
+            }
+        )
     }
 
     private fun sendServFail(query: ParsedDnsQuery, ipInfo: IpPacketInfo, tunOutStream: FileOutputStream) {
@@ -487,61 +474,41 @@ class CoconutVpnService : VpnService() {
         outputStream: FileOutputStream
     ) {
         val cm = getSystemService(ConnectivityManager::class.java)
-        val network = activePhysicalNetwork ?: cm.activeNetwork
-
-        if (network == null) {
-            val servFail = DnsPacketParser.buildServFailResponse(query.txId, query.question.rawQuestionBytes)
-            sendTcpDnsResponse(servFail, ipInfo, session, outputStream)
-            tcpSessions.remove(session.key)
-            return
-        }
-
-        val cancellationSignal = CancellationSignal()
-        try {
-            DnsResolver.getInstance().rawQuery(
-                network,
-                query.rawDnsPayload,
-                DnsResolver.FLAG_NO_CACHE_LOOKUP,
-                dnsExecutor,
-                cancellationSignal,
-                object : DnsResolver.Callback<ByteArray> {
-                    override fun onAnswer(answer: ByteArray, rcode: Int) {
-                        try {
-                            val (minTtl, cnames) = DnsPacketParser.inspectResponse(answer)
-                            var blockedByCname = false
-                            for (cname in cnames) {
-                                if (policyEngine.evaluate(cname) != PolicyDecision.ALLOW) {
-                                    blockedByCname = true
-                                    break
-                                }
-                            }
-                            val finalPayload = if (blockedByCname) {
-                                DnsPacketParser.buildNxDomainResponse(query)
-                            } else {
-                                dnsCache.put(query.question.qname, query.question.qtype, answer, minTtl)
-                                answer
-                            }
-                            sendTcpDnsResponse(finalPayload, ipInfo, session, outputStream)
-                        } finally {
-                            tcpSessions.remove(session.key)
+        upstreamResolver.resolve(
+            query = query,
+            config = currentDnsConfig,
+            physicalNetwork = activePhysicalNetwork,
+            connectivityManager = cm,
+            onSuccess = { answer ->
+                try {
+                    val (minTtl, cnames) = DnsPacketParser.inspectResponse(answer)
+                    var blockedByCname = false
+                    for (cname in cnames) {
+                        if (policyEngine.evaluate(cname) != PolicyDecision.ALLOW) {
+                            blockedByCname = true
+                            break
                         }
                     }
-
-                    override fun onError(error: DnsResolver.DnsException) {
-                        try {
-                            val servFail = DnsPacketParser.buildServFailResponse(query.txId, query.question.rawQuestionBytes)
-                            sendTcpDnsResponse(servFail, ipInfo, session, outputStream)
-                        } finally {
-                            tcpSessions.remove(session.key)
-                        }
+                    val finalPayload = if (blockedByCname) {
+                        DnsPacketParser.buildNxDomainResponse(query)
+                    } else {
+                        dnsCache.put(query.question.qname, query.question.qtype, answer, minTtl)
+                        answer
                     }
+                    sendTcpDnsResponse(finalPayload, ipInfo, session, outputStream)
+                } finally {
+                    tcpSessions.remove(session.key)
                 }
-            )
-        } catch (_: Exception) {
-            val servFail = DnsPacketParser.buildServFailResponse(query.txId, query.question.rawQuestionBytes)
-            sendTcpDnsResponse(servFail, ipInfo, session, outputStream)
-            tcpSessions.remove(session.key)
-        }
+            },
+            onError = {
+                try {
+                    val servFail = DnsPacketParser.buildServFailResponse(query.txId, query.question.rawQuestionBytes)
+                    sendTcpDnsResponse(servFail, ipInfo, session, outputStream)
+                } finally {
+                    tcpSessions.remove(session.key)
+                }
+            }
+        )
     }
 
     private fun pruneStaleTcpSessions() {
@@ -585,9 +552,8 @@ class CoconutVpnService : VpnService() {
         cm.registerNetworkCallback(request, networkCallback!!)
     }
 
-    private fun stopVpnInternal() {
+    private fun stopVpnInternal(isRevoked: Boolean = false) {
         _isVpnRunning.value = false
-        updateDatabaseState(enabled = false)
 
         packetLoopJob?.cancel()
         packetLoopJob = null
@@ -601,11 +567,16 @@ class CoconutVpnService : VpnService() {
 
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+
+        if (!isRevoked) {
+            com.coconut.policy.LemonPolicyCoordinator.getInstance(this).onServiceStoppedNormally()
+        }
     }
 
     override fun onRevoke() {
         super.onRevoke()
-        stopVpnInternal()
+        com.coconut.policy.LemonPolicyCoordinator.getInstance(this).onServiceRevoked()
+        stopVpnInternal(isRevoked = true)
     }
 
     override fun onDestroy() {
@@ -617,15 +588,6 @@ class CoconutVpnService : VpnService() {
         }
         dnsExecutor.shutdown()
         serviceScope.cancel()
-    }
-
-    private fun updateDatabaseState(enabled: Boolean) {
-        serviceScope.launch {
-            val db = AppDatabase.get(applicationContext)
-            val dao = db.dnsConfigurationDao()
-            val current = dao.getConfiguration() ?: com.coconut.data.DnsConfigurationEntity()
-            dao.insertOrUpdate(current.copy(dnsEnabled = enabled))
-        }
     }
 
     private fun createNotificationChannel() {

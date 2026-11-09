@@ -1,11 +1,14 @@
 package com.coconut.dns
 
+import android.app.Activity
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.net.VpnService
 import android.os.Build
+import android.provider.Settings
 import com.coconut.data.AppDatabase
 import com.coconut.data.DnsScheduleEntity
 import kotlinx.coroutines.Dispatchers
@@ -87,10 +90,27 @@ class DnsScheduleManager(private val context: Context) {
         return target.timeInMillis
     }
 
+    fun canScheduleExactAlarms(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            alarmManager.canScheduleExactAlarms()
+        } else {
+            true
+        }
+    }
+
+    fun requestExactAlarmPermission(activity: Activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                data = Uri.parse("package:${activity.packageName}")
+            }
+            activity.startActivity(intent)
+        }
+    }
+
     /**
      * Reconciles schedule enforcement state and arms the next AlarmManager boundary.
-     * When enforceBoundary is true (boundary alarms, boot, time changes),
-     * DNS is actively turned ON from 11:00 PM – 6:00 AM, and turned OFF outside the schedule window.
+     * Evaluates boundaries and coordinates with LemonPolicyCoordinator so manual preference
+     * and Quarantine policies are never overridden.
      */
     suspend fun reconcileSchedule(enforceBoundary: Boolean = true): Boolean = withContext(Dispatchers.IO) {
         val schedule = scheduleDao.getSchedule() ?: DnsScheduleEntity(
@@ -118,19 +138,9 @@ class DnsScheduleManager(private val context: Context) {
             endMinute = 0
         )
 
-        // If inside the scheduled window (11:00 PM – 6:00 AM), ensure VPN is running
-        if (isInside) {
-            if (VpnService.prepare(appContext) == null) {
-                if (!CoconutVpnService.isVpnRunning.value) {
-                    CoconutVpnService.start(appContext)
-                }
-            }
-        } else if (enforceBoundary) {
-            // Outside schedule window at boundary or boot: turn DNS VPN Off
-            if (CoconutVpnService.isVpnRunning.value) {
-                CoconutVpnService.stop(appContext)
-            }
-        }
+        // Delegate to LemonPolicyCoordinator so manual preference, night schedule, and Quarantine
+        // are evaluated authoritatively without conflicting.
+        com.coconut.policy.LemonPolicyCoordinator.getInstance(appContext).reconcile("schedule_reconcile")
 
         // Arm next alarm transition
         armNextAlarm(23, 0, 6, 0)

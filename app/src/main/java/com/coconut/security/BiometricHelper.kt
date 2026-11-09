@@ -25,6 +25,56 @@ object BiometricHelper {
         return biometricManager.canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
     }
 
+    fun canAuthenticateStrong(context: Context): Int {
+        val biometricManager = BiometricManager.from(context)
+        return biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+    }
+
+    /**
+     * Authenticates exclusively via strong biometrics (fingerprint sensor on Samsung A15).
+     * Strictly disallows DEVICE_CREDENTIAL fallback.
+     */
+    fun authenticateStrong(
+        activity: FragmentActivity,
+        title: String,
+        subtitle: String,
+        onSuccess: () -> Unit,
+        onError: (errorCode: Int, errString: String) -> Unit
+    ) {
+        val executor = ContextCompat.getMainExecutor(activity)
+
+        val callback = object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                super.onAuthenticationSucceeded(result)
+                onSuccess()
+            }
+
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                super.onAuthenticationError(errorCode, errString)
+                onError(errorCode, errString.toString())
+            }
+
+            override fun onAuthenticationFailed() {
+                super.onAuthenticationFailed()
+                // BiometricPrompt UI displays unrecognised fingerprint retry state automatically
+            }
+        }
+
+        val prompt = BiometricPrompt(activity, executor, callback)
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle(title)
+            .setSubtitle(subtitle)
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            .setNegativeButtonText("Cancel")
+            .build()
+
+        try {
+            prompt.authenticate(promptInfo)
+        } catch (e: Exception) {
+            onError(-1, e.message ?: "Authentication failed")
+        }
+    }
+
     fun authenticate(
         activity: FragmentActivity,
         title: String,
@@ -52,12 +102,10 @@ object BiometricHelper {
 
             override fun onAuthenticationFailed() {
                 super.onAuthenticationFailed()
-                // Fingerprint not recognized; BiometricPrompt handles retry UI automatically
             }
         }
 
         val prompt = BiometricPrompt(activity, executor, callback)
-
         val promptInfoBuilder = BiometricPrompt.PromptInfo.Builder()
             .setTitle(title)
             .setSubtitle(subtitle)
@@ -85,4 +133,3 @@ object BiometricHelper {
         }
     }
 }
-

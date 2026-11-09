@@ -39,14 +39,20 @@ import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -71,6 +77,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import com.coconut.ui.AppIconCache
+import com.coconut.ui.AppLoadingState
 import com.coconut.ui.InstalledApp
 import com.coconut.ui.LemonTheme
 import com.coconut.ui.MainViewModel
@@ -90,6 +97,12 @@ fun SnapScreen(viewModel: MainViewModel) {
     var selectedStatusFilter by remember { mutableStateOf("All") }
     var selectedCategoryFilter by remember { mutableStateOf("All") }
     var showAccessibilityDisclosure by remember { mutableStateOf(false) }
+
+    // Quarantine Setup State
+    var showQuarantineSetup by remember { mutableStateOf(false) }
+    var quarantineDurationSlider by remember { mutableStateOf(60f) } // 60 minutes default
+    var quarantineSelectedPackages by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var showQuarantineAppPicker by remember { mutableStateOf(false) }
 
     val snappedPackageNames = remember(state.snappedApps) {
         state.snappedApps.map { it.packageName }.toSet()
@@ -150,7 +163,7 @@ fun SnapScreen(viewModel: MainViewModel) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f, fill = false)) {
                     Text(
                         text = "The Snap",
                         style = LemonTheme.typography.displayLarge.copy(
@@ -172,7 +185,8 @@ fun SnapScreen(viewModel: MainViewModel) {
                 if (state.isStrictModeActive) {
                     LemonBadge(
                         text = "Strict Mode",
-                        style = LemonBadgeStyle.WARNING
+                        style = LemonBadgeStyle.WARNING,
+                        modifier = Modifier.padding(start = 8.dp)
                     )
                 }
             }
@@ -243,7 +257,240 @@ fun SnapScreen(viewModel: MainViewModel) {
             }
         }
 
-        // 3. Search Field (Capsule 48dp)
+        // 3. Quarantine Self-Control Section (Requirement 13)
+        item(key = "quarantine_section") {
+            if (state.isQuarantineActive) {
+                val totalSecs = state.quarantineRemainingSeconds
+                val hrs = totalSecs / 3600
+                val mins = (totalSecs % 3600) / 60
+                val secs = totalSecs % 60
+                val timerFormatted = String.format("%02d:%02d:%02d", hrs, mins, secs)
+
+                Surface(
+                    shape = LemonTheme.shapes.card,
+                    color = LemonTheme.colors.warningContainer,
+                    border = BorderStroke(1.dp, LemonTheme.colors.warning.copy(alpha = 0.4f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(LemonTheme.colors.warning.copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.HourglassTop,
+                                        contentDescription = null,
+                                        tint = LemonTheme.colors.warning,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "Quarantine Active",
+                                        style = LemonTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = LemonTheme.colors.onWarningContainer
+                                    )
+                                    Text(
+                                        text = "${state.quarantinedPackages.size} apps temporarily blocked",
+                                        style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                        color = LemonTheme.colors.onWarningContainer.copy(alpha = 0.85f)
+                                    )
+                                }
+                            }
+
+                            LemonBadge(
+                                text = "LOCKED",
+                                style = LemonBadgeStyle.DANGER,
+                                showDot = true
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(LemonTheme.colors.cardBackground)
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = timerFormatted,
+                                style = LemonTheme.typography.displayMedium.copy(
+                                    fontSize = 32.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp
+                                ),
+                                color = LemonTheme.colors.textPrimary
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Cannot be cancelled, paused or shortened. DNS protection locked ON.",
+                            style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                            color = LemonTheme.colors.onWarningContainer.copy(alpha = 0.85f),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            } else {
+                Surface(
+                    shape = LemonTheme.shapes.card,
+                    color = LemonTheme.colors.cardBackground,
+                    border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(LemonTheme.colors.primaryAccent.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.HourglassTop,
+                                        contentDescription = null,
+                                        tint = LemonTheme.colors.textAccent,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "Quarantine Mode",
+                                        style = LemonTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = LemonTheme.colors.textPrimary
+                                    )
+                                    Text(
+                                        text = "Impose a strict temporary self-control window",
+                                        style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                        color = LemonTheme.colors.textSecondary
+                                    )
+                                }
+                            }
+
+                            Button(
+                                onClick = { showQuarantineSetup = !showQuarantineSetup },
+                                shape = LemonTheme.shapes.button,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = LemonTheme.colors.cardSecondaryBackground,
+                                    contentColor = LemonTheme.colors.textPrimary
+                                ),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = if (showQuarantineSetup) "Hide" else "Setup",
+                                    style = LemonTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                                )
+                            }
+                        }
+
+                        if (showQuarantineSetup) {
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            val durationInt = quarantineDurationSlider.toInt()
+                            val hrs = durationInt / 60
+                            val mins = durationInt % 60
+                            val durationFormatted = if (hrs > 0 && mins > 0) "${hrs} hr ${mins} min" else if (hrs > 0) "${hrs} hr" else "${mins} min"
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Duration: $durationFormatted",
+                                    style = LemonTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    color = LemonTheme.colors.textPrimary
+                                )
+                                Text(
+                                    text = "30m – 5h",
+                                    style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                    color = LemonTheme.colors.textSecondary
+                                )
+                            }
+
+                            Slider(
+                                value = quarantineDurationSlider,
+                                onValueChange = { quarantineDurationSlider = it },
+                                valueRange = 30f..300f,
+                                steps = 8,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = LemonTheme.colors.primaryAccent,
+                                    activeTrackColor = LemonTheme.colors.primaryAccent
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedButton(
+                                    onClick = { showQuarantineAppPicker = true },
+                                    shape = LemonTheme.shapes.button,
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = "Select Apps (${quarantineSelectedPackages.size})",
+                                        style = LemonTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
+                                    )
+                                }
+
+                                Button(
+                                    onClick = {
+                                        if (activity != null) {
+                                            viewModel.startQuarantineSession(
+                                                activity = activity,
+                                                durationMinutes = durationInt,
+                                                packages = quarantineSelectedPackages
+                                            )
+                                        }
+                                    },
+                                    enabled = quarantineSelectedPackages.isNotEmpty(),
+                                    shape = LemonTheme.shapes.button,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = LemonTheme.colors.primaryAccent,
+                                        contentColor = LemonTheme.colors.onPrimaryAccent
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
+                                ) {
+                                    Text(
+                                        text = "Start Quarantine",
+                                        style = LemonTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Search Field (Capsule 48dp)
         item(key = "search") {
             LemonSearchField(
                 query = state.searchQuery,
@@ -309,20 +556,59 @@ fun SnapScreen(viewModel: MainViewModel) {
             }
         }
 
-        // 6. Application Rows or Empty State
-        if (filteredApps.isEmpty()) {
+        // 6. Application Loading State Machine & Rows
+        val isInitialLoading = state.appLoadingState == AppLoadingState.INITIAL_LOADING ||
+                (state.appLoadingState == AppLoadingState.LOADING && state.installedApps.isEmpty())
+
+        if (isInitialLoading) {
+            // High-polish skeleton placeholder list during package query
+            items(6) { index ->
+                LemonSkeletonRow()
+            }
+        } else if (state.appLoadingState == AppLoadingState.ERROR && state.installedApps.isEmpty()) {
+            item(key = "error_loading_apps") {
+                LemonEmptyState(
+                    icon = Icons.Default.Warning,
+                    title = "Failed to load applications",
+                    description = state.appLoadingError ?: "Could not enumerate installed applications.",
+                    actionLabel = "Retry",
+                    onActionClick = { viewModel.loadInstalledApps() }
+                )
+            }
+        } else if (filteredApps.isEmpty()) {
             item(key = "empty_apps") {
+                val (emptyTitle, emptyDesc, actionText, actionClick) = when {
+                    state.searchQuery.isNotEmpty() -> Quadruple(
+                        "No applications match",
+                        "No installed apps match '${state.searchQuery}'.",
+                        "Clear search",
+                        { viewModel.setSearchQuery("") }
+                    )
+                    selectedStatusFilter == "Snapped" -> Quadruple(
+                        "No apps snapped",
+                        "You haven't restricted any applications yet. Select 'All' to browse and snap apps.",
+                        "Show all apps",
+                        { selectedStatusFilter = "All" }
+                    )
+                    selectedCategoryFilter != "All" -> Quadruple(
+                        "No apps in $selectedCategoryFilter",
+                        "No installed applications match the $selectedCategoryFilter category.",
+                        "Show all categories",
+                        { selectedCategoryFilter = "All" }
+                    )
+                    else -> Quadruple(
+                        "No applications found",
+                        "No user-launchable applications are currently available.",
+                        null,
+                        null
+                    )
+                }
                 LemonEmptyState(
                     icon = Icons.Default.SearchOff,
-                    title = "No applications found",
-                    description = if (state.searchQuery.isNotEmpty())
-                        "No installed apps match '${state.searchQuery}'."
-                    else
-                        "No applications match the selected filter.",
-                    actionLabel = if (state.searchQuery.isNotEmpty()) "Clear search" else null,
-                    onActionClick = if (state.searchQuery.isNotEmpty()) {
-                        { viewModel.setSearchQuery("") }
-                    } else null
+                    title = emptyTitle,
+                    description = emptyDesc,
+                    actionLabel = actionText,
+                    onActionClick = actionClick
                 )
             }
         } else {
@@ -344,6 +630,112 @@ fun SnapScreen(viewModel: MainViewModel) {
                 )
             }
         }
+    }
+
+    // Quarantine Application Picker Dialog
+    if (showQuarantineAppPicker) {
+        var tempSelected by remember { mutableStateOf(quarantineSelectedPackages) }
+        AlertDialog(
+            onDismissRequest = { showQuarantineAppPicker = false },
+            shape = LemonTheme.shapes.dialog,
+            containerColor = LemonTheme.colors.cardBackground,
+            title = {
+                Text(
+                    text = "Select Quarantined Apps",
+                    style = LemonTheme.typography.titleLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
+                    color = LemonTheme.colors.textPrimary
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp)
+                ) {
+                    Text(
+                        text = "Selected apps will be temporarily blocked for the duration of Quarantine:",
+                        style = LemonTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                        color = LemonTheme.colors.textSecondary
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(
+                            items = state.installedApps,
+                            key = { it.packageName }
+                        ) { app ->
+                            val isChecked = tempSelected.contains(app.packageName)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        tempSelected = if (isChecked) {
+                                            tempSelected - app.packageName
+                                        } else {
+                                            tempSelected + app.packageName
+                                        }
+                                    }
+                                    .padding(vertical = 4.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = isChecked,
+                                    onCheckedChange = { checked ->
+                                        tempSelected = if (checked) {
+                                            tempSelected + app.packageName
+                                        } else {
+                                            tempSelected - app.packageName
+                                        }
+                                    },
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = LemonTheme.colors.primaryAccent
+                                    )
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = app.label,
+                                        style = LemonTheme.typography.titleSmall.copy(fontSize = 14.sp),
+                                        color = LemonTheme.colors.textPrimary
+                                    )
+                                    Text(
+                                        text = app.category,
+                                        style = LemonTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        color = LemonTheme.colors.textSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        quarantineSelectedPackages = tempSelected
+                        showQuarantineAppPicker = false
+                    },
+                    shape = LemonTheme.shapes.button,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = LemonTheme.colors.primaryAccent,
+                        contentColor = LemonTheme.colors.onPrimaryAccent
+                    )
+                ) {
+                    Text("Confirm Selection (${tempSelected.size})", style = LemonTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showQuarantineAppPicker = false },
+                    shape = LemonTheme.shapes.button
+                ) {
+                    Text("Cancel", style = LemonTheme.typography.labelMedium, color = LemonTheme.colors.textSecondary)
+                }
+            }
+        )
     }
 
     // Two-step Typed Confirmation Sheet
@@ -684,6 +1076,62 @@ private fun LemonAppRow(
                     )
                 }
             }
+        }
+    }
+}
+
+private data class Quadruple<A, B, C, D>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D
+)
+
+@Composable
+private fun LemonSkeletonRow() {
+    Surface(
+        shape = LemonTheme.shapes.card,
+        color = LemonTheme.colors.cardBackground,
+        border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(LemonTheme.shapes.iconSquircle)
+                    .background(LemonTheme.colors.cardSecondaryBackground)
+            )
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.55f)
+                        .height(16.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(LemonTheme.colors.cardSecondaryBackground)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.35f)
+                        .height(12.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(LemonTheme.colors.cardSecondaryBackground.copy(alpha = 0.6f))
+                )
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+            Box(
+                modifier = Modifier
+                    .size(width = 64.dp, height = 32.dp)
+                    .clip(LemonTheme.shapes.button)
+                    .background(LemonTheme.colors.cardSecondaryBackground)
+            )
         }
     }
 }

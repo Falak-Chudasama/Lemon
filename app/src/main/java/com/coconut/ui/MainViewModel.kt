@@ -16,6 +16,10 @@ import com.coconut.data.DomainRuleEntity
 import com.coconut.data.SnappedAppEntity
 import com.coconut.data.StrictModeConfigEntity
 import com.coconut.dns.CoconutVpnService
+import com.coconut.dns.DnsScheduleManager
+import com.coconut.policy.LemonPolicyCoordinator
+import com.coconut.policy.QuarantineManager
+import com.coconut.policy.VpnRuntimeState
 import com.coconut.security.AppLockManager
 import com.coconut.security.BiometricHelper
 import com.coconut.service.SnapAccessibilityService
@@ -23,6 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -31,6 +36,15 @@ enum class NavigationTab {
     SNAP,
     DNS,
     SETTINGS
+}
+
+enum class AppLoadingState {
+    INITIAL_LOADING,
+    LOADING,
+    LOADED,
+    EMPTY,
+    ERROR,
+    REFRESHING
 }
 
 data class InstalledApp(
@@ -42,13 +56,23 @@ data class InstalledApp(
 
 data class MainUiState(
     val selectedTab: NavigationTab = NavigationTab.SNAP,
-    val isLoading: Boolean = false,
+    val appLoadingState: AppLoadingState = AppLoadingState.INITIAL_LOADING,
+    val appLoadingError: String? = null,
     val isSessionUnlocked: Boolean = false,
     val isAppLockEnabled: Boolean = true,
     val isAccessibilityGranted: Boolean = false,
     val isVpnRunning: Boolean = false,
+    val vpnRuntimeState: VpnRuntimeState = VpnRuntimeState.DISABLED,
+    val effectiveDnsDesired: Boolean = false,
+    val manualDnsPreference: Boolean = false,
+    val manualDnsConfirmed: Boolean = true,
     val isVpnPrepared: Boolean = false,
+    val isExactAlarmPermitted: Boolean = true,
     val isStrictModeActive: Boolean = false,
+    // Quarantine State
+    val isQuarantineActive: Boolean = false,
+    val quarantineRemainingSeconds: Long = 0L,
+    val quarantinedPackages: Set<String> = emptySet(),
     val installedApps: List<InstalledApp> = emptyList(),
     val snappedApps: List<SnappedAppEntity> = emptyList(),
     val domainRules: List<DomainRuleEntity> = emptyList(),
@@ -75,6 +99,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val repo = CoconutRepository(application)
     val themePreferences = ThemePreferences(application)
     private val pm = application.packageManager
+    val coordinator = LemonPolicyCoordinator.getInstance(application)
+    val quarantineManager = QuarantineManager.getInstance(application)
 
     private val _state = MutableStateFlow(MainUiState())
     val state: StateFlow<MainUiState> = _state.asStateFlow()
@@ -82,7 +108,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     init {
         observeData()
         refresh()
-        loadInstalledApps()
+        loadInstalledApps(isInitial = true)
     }
 
     private fun observeData() {
@@ -95,6 +121,55 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         isAppLockEnabled = repo.appLockManager.isAppLockEnabled
                     )
                 }
+            }
+        }
+
+        // VPN Runtime State & Policy Coordinator
+        viewModelScope.launch {
+            coordinator.vpnRuntimeState.collectLatest { runtimeState ->
+                _state.update {
+                    it.copy(
+                        vpnRuntimeState = runtimeState,
+                        isVpnRunning = runtimeState == VpnRuntimeState.PROTECTED || runtimeState == VpnRuntimeState.RUNNING
+                    )
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            coordinator.effectiveDnsDesired.collectLatest { desired ->
+                _state.update { it.copy(effectiveDnsDesired = desired) }
+            }
+        }
+
+        viewModelScope.launch {
+            coordinator.manualDnsPreference.collectLatest { manual ->
+                _state.update { it.copy(manualDnsPreference = manual) }
+            }
+        }
+
+        viewModelScope.launch {
+            coordinator.manualDnsConfirmed.collectLatest { confirmed ->
+                _state.update { it.copy(manualDnsConfirmed = confirmed) }
+            }
+        }
+
+        // Quarantine State
+        viewModelScope.launch {
+            quarantineManager.isQuarantineActive.collectLatest { active ->
+                _state.update { it.copy(isQuarantineActive = active) }
+            }
+        }
+
+        viewModelScope.launch {
+            quarantineManager.remainingSeconds.collectLatest { remaining ->
+                _state.update { it.copy(quarantineRemainingSeconds = remaining) }
+            }
+        }
+
+        viewModelScope.launch {
+            quarantineManager.quarantinedPackages.collectLatest { pkgs ->
+                _state.update { it.copy(quarantinedPackages = pkgs) }
             }
         }
 
@@ -141,7 +216,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // DNS Config
         viewModelScope.launch {
             repo.observeDnsConfig().collect { config ->
-                _state.update { it.copy(dnsConfig = config) }
+                _state.update {
+                    it.copy(
+                        dnsConfig = config,
+                        manualDnsPreference = config?.manualDnsEnabled ?: false
+                    )
+                }
             }
         }
 
@@ -150,7 +230,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             repo.observeCategoryOverrides().collect { overrides ->
                 val map = overrides.associate { it.packageName to it.category }
                 _state.update { it.copy(categoryOverrides = map) }
-                // Re-categorize installed apps when overrides change
                 refreshAppCategories(map)
             }
         }
@@ -171,13 +250,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             SnapAccessibilityService.isRunning.collect { running ->
                 _state.update { it.copy(isAccessibilityGranted = running || repo.isAccessibilityPermissionGranted()) }
-            }
-        }
-
-        // VPN Service
-        viewModelScope.launch {
-            CoconutVpnService.isVpnRunning.collect { running ->
-                _state.update { it.copy(isVpnRunning = running) }
             }
         }
 
@@ -208,17 +280,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _state.update {
             it.copy(
                 isAccessibilityGranted = repo.isAccessibilityPermissionGranted(),
-                isVpnRunning = CoconutVpnService.isVpnRunning.value,
                 isVpnPrepared = repo.isVpnPermissionPrepared(),
+                isExactAlarmPermitted = repo.scheduleManager.canScheduleExactAlarms(),
                 isStrictModeActive = repo.strictModeManager.isStrictProtectionActive(),
                 isInsideNightSchedule = inside,
                 isAppLockEnabled = repo.appLockManager.isAppLockEnabled
             )
         }
 
-        // Trigger schedule reconciliation and mature request checks
+        // Trigger schedule reconciliation and coordinator reconciliation
         viewModelScope.launch {
             repo.scheduleManager.reconcileSchedule()
+            quarantineManager.reconcile()
+            coordinator.reconcile("refresh")
         }
     }
 
@@ -226,10 +300,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun unlockSession() {
         AppLockManager.unlockSession()
-    }
-
-    fun lockCoconut() {
-        AppLockManager.lockSession()
     }
 
     fun lockLemon() {
@@ -263,31 +333,65 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _state.update { it.copy(bannerMessage = null, errorMessage = null) }
     }
 
-    // --- INSTALLED APPS & CATEGORIES ---
+    // --- INSTALLED APPS LOADING STATE MACHINE ---
 
-    fun loadInstalledApps() {
+    fun loadInstalledApps(isInitial: Boolean = false, isRefresh: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(isLoading = true) }
-            val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-            val launchIntent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
-            val launchablePackages = pm.queryIntentActivities(launchIntent, 0).map { it.activityInfo.packageName }.toSet()
-            val overrides = _state.value.categoryOverrides
+            val hasExisting = _state.value.installedApps.isNotEmpty()
+            val nextLoadingState = when {
+                isInitial -> AppLoadingState.INITIAL_LOADING
+                isRefresh && hasExisting -> AppLoadingState.REFRESHING
+                else -> AppLoadingState.LOADING
+            }
+            _state.update { it.copy(appLoadingState = nextLoadingState, appLoadingError = null) }
 
-            val apps = packages
-                .filter { it.packageName != getApplication<Application>().packageName && launchablePackages.contains(it.packageName) }
-                .map { info ->
-                    val isSystem = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-                    val category = repo.safePackageHelper.resolveCategory(info, overrides[info.packageName])
-                    InstalledApp(
-                        packageName = info.packageName,
-                        label = pm.getApplicationLabel(info).toString(),
-                        category = category,
-                        isSystemApp = isSystem
+            try {
+                val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+                val launchIntent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
+                val launchablePackages = pm.queryIntentActivities(launchIntent, 0)
+                    .map { it.activityInfo.packageName }
+                    .toSet()
+                val overrides = _state.value.categoryOverrides
+
+                val apps = packages
+                    .filter { it.packageName != getApplication<Application>().packageName && launchablePackages.contains(it.packageName) }
+                    .map { info ->
+                        val isSystem = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+                        val category = repo.safePackageHelper.resolveCategory(info, overrides[info.packageName])
+                        InstalledApp(
+                            packageName = info.packageName,
+                            label = pm.getApplicationLabel(info).toString(),
+                            category = category,
+                            isSystemApp = isSystem
+                        )
+                    }
+                    .sortedBy { it.label.lowercase() }
+
+                val finalState = if (apps.isEmpty()) AppLoadingState.EMPTY else AppLoadingState.LOADED
+                _state.update {
+                    it.copy(
+                        installedApps = apps,
+                        appLoadingState = finalState,
+                        appLoadingError = null
                     )
                 }
-                .sortedBy { it.label.lowercase() }
-
-            _state.update { it.copy(installedApps = apps, isLoading = false) }
+            } catch (e: Exception) {
+                if (hasExisting) {
+                    _state.update {
+                        it.copy(
+                            appLoadingState = AppLoadingState.LOADED,
+                            errorMessage = "Refresh failed: ${e.message}"
+                        )
+                    }
+                } else {
+                    _state.update {
+                        it.copy(
+                            appLoadingState = AppLoadingState.ERROR,
+                            appLoadingError = e.message ?: "Failed to retrieve installed packages"
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -307,9 +411,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // --- SNAP TWO-STEP CONFIRMATION WORKFLOW ---
 
-    /**
-     * Step 1: Trigger Strong Biometric prompt before creating a Snap.
-     */
     fun startSnapProcess(activity: FragmentActivity, app: InstalledApp) {
         if (repo.safePackageHelper.isProtectedPackage(app.packageName)) {
             val reason = repo.safePackageHelper.getProtectionReason(app.packageName) ?: "System-protected package."
@@ -321,9 +422,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             activity = activity,
             title = "Snap ${app.label}",
             subtitle = "Biometric required to confirm restriction",
-            allowDeviceCredential = true, // Biometric or secure credential required for Snap
+            allowDeviceCredential = true,
             onSuccess = {
-                // Step 2: Open exact typed confirmation sheet
                 _state.update {
                     it.copy(
                         pendingSnapApp = app,
@@ -342,9 +442,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _state.update { it.copy(typedSnapText = text) }
     }
 
-    /**
-     * Step 2: Commits the Snap only when exact case-sensitive "SNAP" is submitted.
-     */
     fun commitSnap() {
         val app = _state.value.pendingSnapApp ?: return
         if (_state.value.typedSnapText != "SNAP") {
@@ -389,15 +486,66 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // --- DNS & 30-DAY QUEUE ACTIONS ---
+    // --- QUARANTINE ACTIONS ---
 
-    fun toggleDns(enable: Boolean) {
-        if (!enable && _state.value.isInsideNightSchedule) {
-            _state.update { it.copy(errorMessage = "DNS locked: Night schedule is active (23:00 - 06:00)") }
+    fun startQuarantineSession(
+        activity: FragmentActivity,
+        durationMinutes: Int,
+        packages: Set<String>
+    ) {
+        if (packages.isEmpty()) {
+            _state.update { it.copy(errorMessage = "Select at least one application to quarantine") }
             return
         }
+
+        BiometricHelper.authenticate(
+            activity = activity,
+            title = "Start Quarantine",
+            subtitle = "Biometric required to lock self-control session ($durationMinutes mins)",
+            allowDeviceCredential = true,
+            onSuccess = {
+                viewModelScope.launch {
+                    val result = quarantineManager.startQuarantine(durationMinutes, packages)
+                    result.fold(
+                        onSuccess = {
+                            _state.update {
+                                it.copy(
+                                    bannerMessage = "Quarantine started for $durationMinutes minutes"
+                                )
+                            }
+                        },
+                        onFailure = { err ->
+                            _state.update { it.copy(errorMessage = err.message) }
+                        }
+                    )
+                }
+            },
+            onError = { err ->
+                _state.update { it.copy(errorMessage = "Authentication failed: $err") }
+            }
+        )
+    }
+
+    // --- DNS ACTIONS ---
+
+    fun toggleDns(enable: Boolean) {
         viewModelScope.launch {
-            repo.setDnsServiceEnabled(enable)
+            val allowed = coordinator.setManualDnsPreference(enable)
+            if (!allowed) {
+                _state.update {
+                    it.copy(
+                        errorMessage = "DNS locked ON: Night schedule (23:00–06:00) or Quarantine is active"
+                    )
+                }
+            } else {
+                refresh()
+            }
+        }
+    }
+
+    fun confirmManualDnsPreference(keepAlwaysOn: Boolean) {
+        viewModelScope.launch {
+            coordinator.confirmManualDnsPreference(keepAlwaysOn)
             refresh()
         }
     }
@@ -409,9 +557,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * Add domain to blocklist: requires biometric, applies immediately (strengthens filtering).
-     */
+    fun updateUpstreamConfig(primary: String, secondary: String, custom: String, protocol: String) {
+        viewModelScope.launch {
+            repo.updateUpstreamConfiguration(primary, secondary, custom, protocol)
+            _state.update { it.copy(bannerMessage = "Upstream DNS updated") }
+        }
+    }
+
+    // --- DOMAIN RULES & 30-DAY QUEUE ---
+
     fun requestAddBlocklistDomain(activity: FragmentActivity, rawDomain: String) {
         val normalized = com.coconut.dns.DomainPolicyEngine.normalizeDomain(rawDomain)
         if (normalized == null || !com.coconut.dns.DomainPolicyEngine.isValidDomain(normalized)) {
@@ -443,9 +597,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    /**
-     * Remove domain from blocklist: requires biometric, enforces exact 30-day queue (weakens filtering).
-     */
     fun requestRemoveBlocklistDomain(activity: FragmentActivity, domain: String) {
         BiometricHelper.authenticate(
             activity = activity,
@@ -471,9 +622,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    /**
-     * Add domain to allowlist: requires biometric, enforces exact 30-day queue (weakens filtering).
-     */
     fun requestAddAllowlistDomain(activity: FragmentActivity, rawDomain: String) {
         val normalized = com.coconut.dns.DomainPolicyEngine.normalizeDomain(rawDomain)
         if (normalized == null || !com.coconut.dns.DomainPolicyEngine.isValidDomain(normalized)) {
@@ -505,9 +653,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    /**
-     * Remove domain from allowlist: requires biometric, applies immediately (strengthens filtering).
-     */
     fun requestRemoveAllowlistDomain(activity: FragmentActivity, domain: String) {
         BiometricHelper.authenticate(
             activity = activity,
@@ -526,9 +671,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    /**
-     * Cancel pending domain request (preserves stronger filtering).
-     */
     fun cancelPendingRequest(id: Long) {
         viewModelScope.launch {
             repo.cancelDomainChangeRequest(id)
@@ -620,8 +762,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             repo.cancelUnlockCountdown()
         }
     }
-
-    // --- EXPORT & IMPORT ---
 
     suspend fun exportRules(): String = repo.exportRulesToPlainText()
 
