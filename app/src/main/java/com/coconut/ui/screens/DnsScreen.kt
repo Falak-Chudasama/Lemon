@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,7 +19,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -61,6 +61,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -68,6 +69,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
+import com.coconut.R
 import com.coconut.data.DomainChangeOperation
 import com.coconut.data.DomainChangeRequestEntity
 import com.coconut.data.DomainRuleEntity
@@ -77,12 +79,26 @@ import com.coconut.ui.LemonTheme
 import com.coconut.ui.MainViewModel
 import com.coconut.ui.components.LemonBadge
 import com.coconut.ui.components.LemonBadgeStyle
+import com.coconut.ui.components.LemonCard
 import com.coconut.ui.components.LemonEmptyState
+import com.coconut.ui.components.LemonMetricWell
 import com.coconut.ui.components.LemonSearchField
+import com.coconut.ui.components.LemonSectionEyebrow
 import com.coconut.ui.components.LemonSegmentItem
 import com.coconut.ui.components.LemonSegmentedControl
 import com.coconut.ui.components.LemonSwitch
 
+/**
+ * Redesigned Local DNS Screen conforming to the Fruit Family design system.
+ * Features:
+ * - Unbounded geometric header with Lemon brand icon
+ * - Operational status badge with genuine runtime state
+ * - Clean 16dp content cards for master filtering and daily protection schedules
+ * - HaGeZi threat intelligence and content filter cards
+ * - Upstream resolver selection with custom endpoint configuration
+ * - 30-Day pending domain change queue with countdown
+ * - High-contrast search, rule tabs, and respectful removal actions
+ */
 @Composable
 fun DnsScreen(viewModel: MainViewModel) {
     val state by viewModel.state.collectAsState()
@@ -134,7 +150,7 @@ fun DnsScreen(viewModel: MainViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 20.dp, bottom = 140.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 140.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Status bar top spacing
@@ -142,54 +158,80 @@ fun DnsScreen(viewModel: MainViewModel) {
             Spacer(modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars))
         }
 
-        // 1. Page Header with Single Clear Status Hierarchy (Responsive, no text wrapping)
+        // 1. Page Header (Fruit Family PageShell pattern with Unbounded display title)
         item(key = "dns_header") {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f, fill = false)) {
-                    Text(
-                        text = "DNS Protection",
-                        style = LemonTheme.typography.displayLarge.copy(
-                            fontSize = 34.sp,
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = LemonTheme.colors.textPrimary
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = when (state.vpnRuntimeState) {
-                            VpnRuntimeState.PROTECTED -> "On-device packet filter operational"
-                            VpnRuntimeState.STARTING, VpnRuntimeState.RECOVERING -> "Connecting local DNS tunnel..."
-                            VpnRuntimeState.REVOKED -> "VPN consent revoked by Android system"
-                            VpnRuntimeState.FAILED -> "Tunnel establishment failed"
-                            else -> if (state.isInsideNightSchedule) "Enforced by nightly schedule (23:00–06:00)"
-                            else if (state.isQuarantineActive) "Enforced by active Quarantine session"
-                            else "Protection is currently disabled"
-                        },
-                        style = LemonTheme.typography.bodyMedium.copy(fontSize = 15.sp),
-                        color = LemonTheme.colors.textSecondary
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Surface(
+                            shape = LemonTheme.shapes.iconSquircle,
+                            color = LemonTheme.colors.cardSecondaryBackground,
+                            border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Shield,
+                                    contentDescription = null,
+                                    tint = LemonTheme.colors.brandAmber,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        Column {
+                            Text(
+                                text = "DNS Protection",
+                                style = LemonTheme.typography.displayLarge.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = LemonTheme.colors.textPrimary
+                            )
+                        }
+                    }
+
+                    LemonBadge(
+                        text = statusLabel,
+                        style = statusStyle,
+                        showDot = true
                     )
                 }
 
-                LemonBadge(
-                    text = statusLabel,
-                    style = statusStyle,
-                    showDot = true,
-                    modifier = Modifier.padding(start = 8.dp)
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = when (state.vpnRuntimeState) {
+                        VpnRuntimeState.PROTECTED -> "On-device packet filter operational."
+                        VpnRuntimeState.STARTING, VpnRuntimeState.RECOVERING -> "Connecting local DNS tunnel..."
+                        VpnRuntimeState.REVOKED -> "VPN consent revoked by Android system."
+                        VpnRuntimeState.FAILED -> "Tunnel establishment failed."
+                        else -> if (state.isInsideNightSchedule) "Enforced by nightly schedule (23:00–06:00)."
+                        else if (state.isQuarantineActive) "Enforced by active Quarantine session."
+                        else "Protection is currently disabled."
+                    },
+                    style = LemonTheme.typography.bodyMedium,
+                    color = LemonTheme.colors.textSecondary
                 )
             }
         }
 
-        // 2. VPN Revocation / Deletion Recovery Card (Requirement 6)
+        // 2. VPN Revocation / Deletion Recovery Card
         if (state.vpnRuntimeState == VpnRuntimeState.REVOKED) {
             item(key = "vpn_recovery_card") {
                 Surface(
                     shape = LemonTheme.shapes.card,
                     color = LemonTheme.colors.dangerContainer,
-                    border = BorderStroke(1.dp, LemonTheme.colors.danger.copy(alpha = 0.45f)),
+                    border = BorderStroke(1.dp, LemonTheme.colors.danger.copy(alpha = 0.35f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
@@ -241,79 +283,77 @@ fun DnsScreen(viewModel: MainViewModel) {
             }
         }
 
-        // 2.5 One-time Upgrade Confirmation Card (if not yet confirmed)
+        // 2.5 One-time Upgrade Confirmation Card
         if (!state.manualDnsConfirmed) {
             item(key = "one_time_confirmation_card") {
-                Surface(
-                    shape = LemonTheme.shapes.card,
-                    color = LemonTheme.colors.cardBackground,
-                    border = BorderStroke(1.dp, LemonTheme.colors.primaryAccent),
-                    modifier = Modifier.fillMaxWidth()
+                LemonCard(
+                    borderColor = LemonTheme.colors.brandAmber
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(LemonTheme.shapes.iconSquircle)
+                                .background(LemonTheme.colors.brandYellow.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
                                 imageVector = Icons.Filled.Shield,
                                 contentDescription = null,
-                                tint = LemonTheme.colors.primaryAccent,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "Confirm Daytime Protection",
-                                style = LemonTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = LemonTheme.colors.textPrimary
+                                tint = LemonTheme.colors.brandAmber,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Lemon is upgrading your DNS engine. Would you like DNS protection active 24/7 or only during your scheduled nightly hours (11:00 PM – 6:00 AM)?",
-                            style = LemonTheme.typography.bodySmall,
-                            color = LemonTheme.colors.textSecondary
+                            text = "Confirm Daytime Protection",
+                            style = LemonTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = LemonTheme.colors.textPrimary
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Lemon is upgrading your DNS engine. Would you like DNS protection active 24/7 or only during your scheduled nightly hours (11:00 PM – 6:00 AM)?",
+                        style = LemonTheme.typography.bodySmall,
+                        color = LemonTheme.colors.textSecondary
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = { viewModel.confirmManualDnsPreference(true) },
+                            modifier = Modifier.weight(1f),
+                            shape = LemonTheme.shapes.button,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = LemonTheme.colors.primaryAccent,
+                                contentColor = LemonTheme.colors.onPrimaryAccent
+                            )
                         ) {
-                            Button(
-                                onClick = { viewModel.confirmManualDnsPreference(true) },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = LemonTheme.colors.primaryAccent)
-                            ) {
-                                Text("Always On (24/7)", style = LemonTheme.typography.labelSmall)
-                            }
-                            OutlinedButton(
-                                onClick = { viewModel.confirmManualDnsPreference(false) },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Night Only", style = LemonTheme.typography.labelSmall)
-                            }
+                            Text("Always On (24/7)", style = LemonTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                        }
+                        OutlinedButton(
+                            onClick = { viewModel.confirmManualDnsPreference(false) },
+                            modifier = Modifier.weight(1f),
+                            shape = LemonTheme.shapes.button,
+                            border = BorderStroke(1.dp, LemonTheme.colors.cardBorder)
+                        ) {
+                            Text("Night Only", style = LemonTheme.typography.labelSmall, color = LemonTheme.colors.textPrimary)
                         }
                     }
                 }
             }
         }
 
-        // 3. Master DNS Filtering Switch Card (Separate Intent from Runtime Status)
+        // 3. Master DNS Filtering Switch Card
         item(key = "master_dns_card") {
             val isLockedOn = state.isInsideNightSchedule || state.isQuarantineActive
             val isChecked = state.manualDnsPreference || state.effectiveDnsDesired || state.isVpnRunning
 
-            Surface(
-                shape = LemonTheme.shapes.card,
-                color = LemonTheme.colors.cardBackground,
-                border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            LemonCard {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -372,16 +412,9 @@ fun DnsScreen(viewModel: MainViewModel) {
         item(key = "daily_dns_schedule_card") {
             val isInside = state.isInsideNightSchedule
 
-            Surface(
-                shape = LemonTheme.shapes.card,
-                color = LemonTheme.colors.cardBackground,
-                border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            LemonCard {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -389,23 +422,23 @@ fun DnsScreen(viewModel: MainViewModel) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(LemonTheme.colors.primaryAccent.copy(alpha = 0.15f)),
+                                    .size(32.dp)
+                                    .clip(LemonTheme.shapes.iconSquircle)
+                                    .background(LemonTheme.colors.brandYellow.copy(alpha = 0.2f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Schedule,
                                     contentDescription = null,
-                                    tint = LemonTheme.colors.textAccent,
-                                    modifier = Modifier.size(16.dp)
+                                    tint = LemonTheme.colors.brandAmber,
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "Daily DNS Protection",
+                                text = "Daily Protection Window",
                                 style = LemonTheme.typography.titleMedium.copy(
-                                    fontSize = 17.sp,
+                                    fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold
                                 ),
                                 color = LemonTheme.colors.textPrimary
@@ -414,16 +447,16 @@ fun DnsScreen(viewModel: MainViewModel) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "11:00 PM – 6:00 AM",
-                            style = LemonTheme.typography.bodyLarge.copy(
+                            style = LemonTheme.typography.titleMedium.copy(
                                 fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.Bold
                             ),
                             color = LemonTheme.colors.textPrimary
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Repeats every day. Protection cannot be paused or edited.",
-                            style = LemonTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                            text = "Repeats every night. Protection cannot be paused during window.",
+                            style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
                             color = LemonTheme.colors.textSecondary
                         )
                     }
@@ -443,145 +476,131 @@ fun DnsScreen(viewModel: MainViewModel) {
         item(key = "builtin_feeds_card") {
             val config = state.dnsConfig
 
-            Surface(
-                shape = LemonTheme.shapes.card,
-                color = LemonTheme.colors.cardBackground,
-                border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "Built-in Protection",
-                        style = LemonTheme.typography.titleMedium.copy(
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = LemonTheme.colors.textPrimary
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Comprehensive feeds maintained by HaGeZi",
-                        style = LemonTheme.typography.bodySmall.copy(fontSize = 13.sp),
-                        color = LemonTheme.colors.textSecondary
-                    )
+            LemonCard {
+                Text(
+                    text = "Built-in Protection Feeds",
+                    style = LemonTheme.typography.titleMedium.copy(
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = LemonTheme.colors.textPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Comprehensive feeds maintained by HaGeZi",
+                    style = LemonTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                    color = LemonTheme.colors.textSecondary
+                )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                    // Feed 1: Threat Intelligence (TIF Mini)
-                    LemonFeedRow(
-                        title = "Threat Intelligence",
-                        subtitle = "HaGeZi TIF Mini • Malware & malicious C2",
-                        checked = config?.blockThreats ?: true,
-                        onCheckedChange = { viewModel.updateDnsConfiguration(blockThreats = it) }
-                    )
+                // Feed 1: Threat Intelligence (TIF Mini)
+                LemonFeedRow(
+                    title = "Threat Intelligence",
+                    subtitle = "HaGeZi TIF Mini • Malware & malicious C2",
+                    checked = config?.blockThreats ?: true,
+                    onCheckedChange = { viewModel.updateDnsConfiguration(blockThreats = it) }
+                )
 
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 12.dp),
-                        thickness = 1.dp,
-                        color = LemonTheme.colors.separator
-                    )
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    thickness = 1.dp,
+                    color = LemonTheme.colors.separator
+                )
 
-                    // Feed 2: Adult Content (NSFW)
-                    LemonFeedRow(
-                        title = "Adult Content",
-                        subtitle = "HaGeZi NSFW • Pornography & adult sites",
-                        checked = config?.blockAdultContent ?: false,
-                        onCheckedChange = { viewModel.updateDnsConfiguration(blockAdultContent = it) }
-                    )
+                // Feed 2: Adult Content (NSFW)
+                LemonFeedRow(
+                    title = "Adult Content",
+                    subtitle = "HaGeZi NSFW • Adult websites & explicit domains",
+                    checked = config?.blockAdultContent ?: false,
+                    onCheckedChange = { viewModel.updateDnsConfiguration(blockAdultContent = it) }
+                )
 
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 12.dp),
-                        thickness = 1.dp,
-                        color = LemonTheme.colors.separator
-                    )
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    thickness = 1.dp,
+                    color = LemonTheme.colors.separator
+                )
 
-                    // Feed 3: Ads & Trackers (Multi PRO Mini)
-                    LemonFeedRow(
-                        title = "Ads & Trackers",
-                        subtitle = "HaGeZi Multi PRO Mini • Behavioral trackers & ads",
-                        checked = config?.blockAdsTrackers ?: false,
-                        onCheckedChange = { viewModel.updateDnsConfiguration(blockAds = it) }
-                    )
-                }
+                // Feed 3: Ads & Trackers (Multi PRO Mini)
+                LemonFeedRow(
+                    title = "Ads & Trackers",
+                    subtitle = "HaGeZi Multi PRO Mini • Behavioral trackers & advertising",
+                    checked = config?.blockAdsTrackers ?: false,
+                    onCheckedChange = { viewModel.updateDnsConfiguration(blockAds = it) }
+                )
             }
         }
 
-        // 5. Upstream DNS Provider Card (Requirement 7 / Part 9)
+        // 5. Upstream DNS Provider Card
         item(key = "upstream_dns_card") {
             val currentUpstreamId = state.dnsConfig?.primaryUpstream ?: "SYSTEM"
             val preset = DnsUpstreamPresets.getPreset(currentUpstreamId)
             val customEndpoint = state.dnsConfig?.customUpstreamEndpoint ?: ""
 
-            Surface(
-                shape = LemonTheme.shapes.card,
-                color = LemonTheme.colors.cardBackground,
-                border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(LemonTheme.colors.primaryAccent.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Dns,
-                                    contentDescription = null,
-                                    tint = LemonTheme.colors.textAccent,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "Upstream DNS",
-                                style = LemonTheme.typography.titleMedium.copy(
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = LemonTheme.colors.textPrimary
-                            )
-                        }
-
-                        Button(
-                            onClick = { showUpstreamDialog = true },
-                            shape = LemonTheme.shapes.button,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = LemonTheme.colors.primaryAccent,
-                                contentColor = LemonTheme.colors.onPrimaryAccent
-                            ),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+            LemonCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(LemonTheme.shapes.iconSquircle)
+                                .background(LemonTheme.colors.brandYellow.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "Configure",
-                                style = LemonTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                            Icon(
+                                imageVector = Icons.Default.Dns,
+                                contentDescription = null,
+                                tint = LemonTheme.colors.brandAmber,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Upstream Resolver",
+                            style = LemonTheme.typography.titleMedium.copy(
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = LemonTheme.colors.textPrimary
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = if (currentUpstreamId == "CUSTOM") "Custom: $customEndpoint" else preset.displayName,
-                        style = LemonTheme.typography.bodyLarge.copy(
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold
+                    Button(
+                        onClick = { showUpstreamDialog = true },
+                        shape = LemonTheme.shapes.button,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = LemonTheme.colors.primaryAccent,
+                            contentColor = LemonTheme.colors.onPrimaryAccent
                         ),
-                        color = LemonTheme.colors.textPrimary
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = if (currentUpstreamId == "CUSTOM") "Custom encrypted/standard upstream resolver" else preset.description,
-                        style = LemonTheme.typography.bodySmall.copy(fontSize = 13.sp),
-                        color = LemonTheme.colors.textSecondary
-                    )
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "Configure",
+                            style = LemonTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = if (currentUpstreamId == "CUSTOM") "Custom: $customEndpoint" else preset.displayName,
+                    style = LemonTheme.typography.bodyLarge.copy(
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = LemonTheme.colors.textPrimary
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = if (currentUpstreamId == "CUSTOM") "Custom DNS upstream endpoint" else preset.description,
+                    style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    color = LemonTheme.colors.textSecondary
+                )
             }
         }
 
@@ -594,7 +613,7 @@ fun DnsScreen(viewModel: MainViewModel) {
                     border = BorderStroke(1.dp, LemonTheme.colors.warning.copy(alpha = 0.35f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
+                    Column(modifier = Modifier.padding(18.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -611,7 +630,7 @@ fun DnsScreen(viewModel: MainViewModel) {
                                 Text(
                                     text = "Pending Changes",
                                     style = LemonTheme.typography.titleMedium.copy(
-                                        fontSize = 17.sp,
+                                        fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold
                                     ),
                                     color = LemonTheme.colors.onWarningContainer
@@ -624,7 +643,7 @@ fun DnsScreen(viewModel: MainViewModel) {
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         state.pendingDomainRequests.forEachIndexed { index, request ->
                             LemonPendingRequestRow(
@@ -640,48 +659,38 @@ fun DnsScreen(viewModel: MainViewModel) {
             }
         }
 
-        // 6. Custom Rules Section Header & Add Domain
+        // 7. Custom Rules Section Header & Add Domain
         item(key = "custom_domains_header") {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Custom Rules",
-                    style = LemonTheme.typography.titleLarge.copy(
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = LemonTheme.colors.textPrimary
-                )
-
-                Button(
-                    onClick = { showAddDomainDialog = true },
-                    shape = LemonTheme.shapes.button,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = LemonTheme.colors.primaryAccent,
-                        contentColor = LemonTheme.colors.onPrimaryAccent
-                    ),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Add domain",
-                        style = LemonTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold
+            LemonSectionEyebrow(
+                title = "CUSTOM RULES",
+                action = {
+                    Button(
+                        onClick = { showAddDomainDialog = true },
+                        shape = LemonTheme.shapes.button,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = LemonTheme.colors.primaryAccent,
+                            contentColor = LemonTheme.colors.onPrimaryAccent
+                        ),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add",
+                            modifier = Modifier.size(16.dp)
                         )
-                    )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Add domain",
+                            style = LemonTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
                 }
-            }
+            )
         }
 
-        // 7. Tabs: Blocklist / Allowlist via Segmented Control
+        // 8. Tabs: Blocklist / Allowlist via Segmented Control
         item(key = "domain_tabs") {
             val tabs = listOf(
                 LemonSegmentItem(
@@ -702,7 +711,7 @@ fun DnsScreen(viewModel: MainViewModel) {
             )
         }
 
-        // 8. Domain Search Field
+        // 9. Domain Search Field
         item(key = "domain_search") {
             LemonSearchField(
                 query = state.domainFilterQuery,
@@ -711,7 +720,7 @@ fun DnsScreen(viewModel: MainViewModel) {
             )
         }
 
-        // 9. Domain Rows or Empty State
+        // 10. Domain Rows or Empty State
         if (filteredRules.isEmpty()) {
             item(key = "empty_domains") {
                 LemonEmptyState(
@@ -766,7 +775,7 @@ fun DnsScreen(viewModel: MainViewModel) {
                 Text(
                     text = if (isBlock) "Add to Blocklist" else "Add to Allowlist",
                     style = LemonTheme.typography.titleLarge.copy(
-                        fontSize = 20.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     ),
                     color = LemonTheme.colors.textPrimary
@@ -800,7 +809,7 @@ fun DnsScreen(viewModel: MainViewModel) {
                             imeAction = if (isBulkInput) ImeAction.Default else ImeAction.Done
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = LemonTheme.colors.primaryAccent,
+                            focusedBorderColor = LemonTheme.colors.brandAmber,
                             unfocusedBorderColor = LemonTheme.colors.cardBorder,
                             focusedContainerColor = LemonTheme.colors.cardSecondaryBackground,
                             unfocusedContainerColor = LemonTheme.colors.cardSecondaryBackground,
@@ -892,7 +901,7 @@ fun DnsScreen(viewModel: MainViewModel) {
             title = {
                 Text(
                     text = "Select Upstream DNS",
-                    style = LemonTheme.typography.titleLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
+                    style = LemonTheme.typography.titleLarge.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
                     color = LemonTheme.colors.textPrimary
                 )
             },
@@ -908,16 +917,16 @@ fun DnsScreen(viewModel: MainViewModel) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(LemonTheme.shapes.iconSquircle)
                                 .clickable { selectedPresetId = preset.id }
-                                .padding(vertical = 4.dp, horizontal = 4.dp),
+                                .padding(vertical = 6.dp, horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
                                 selected = isSelected,
                                 onClick = { selectedPresetId = preset.id },
                                 colors = RadioButtonDefaults.colors(
-                                    selectedColor = LemonTheme.colors.primaryAccent
+                                    selectedColor = LemonTheme.colors.brandAmber
                                 )
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -925,7 +934,7 @@ fun DnsScreen(viewModel: MainViewModel) {
                                 Text(
                                     text = preset.displayName,
                                     style = LemonTheme.typography.titleSmall.copy(
-                                        fontSize = 15.sp,
+                                        fontSize = 14.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                     ),
                                     color = LemonTheme.colors.textPrimary
@@ -948,9 +957,10 @@ fun DnsScreen(viewModel: MainViewModel) {
                             placeholder = { Text("e.g. 94.140.14.14") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
+                            shape = LemonTheme.shapes.button,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = LemonTheme.colors.primaryAccent,
-                                cursorColor = LemonTheme.colors.primaryAccent
+                                focusedBorderColor = LemonTheme.colors.brandAmber,
+                                cursorColor = LemonTheme.colors.brandAmber
                             )
                         )
                     }
@@ -1013,7 +1023,7 @@ private fun LemonFeedRow(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
-                style = LemonTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
                 color = LemonTheme.colors.textSecondary
             )
         }
@@ -1046,8 +1056,9 @@ private fun LemonPendingRequestRow(
     }
 
     Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = LemonTheme.colors.cardBackground.copy(alpha = 0.85f),
+        shape = RoundedCornerShape(12.dp),
+        color = LemonTheme.colors.cardBackground,
+        border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -1110,16 +1121,11 @@ private fun LemonDomainRuleRow(
     rule: DomainRuleEntity,
     onRemove: () -> Unit
 ) {
-    Surface(
-        shape = LemonTheme.shapes.card,
-        color = LemonTheme.colors.cardBackground,
-        border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
-        modifier = Modifier.fillMaxWidth()
+    LemonCard(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -1146,7 +1152,6 @@ private fun LemonDomainRuleRow(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            // Subdued "Remove..." button communicating delayed security workflow
             Button(
                 onClick = onRemove,
                 shape = LemonTheme.shapes.button,

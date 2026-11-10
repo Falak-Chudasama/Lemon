@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -33,13 +32,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -69,13 +67,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
+import com.coconut.R
 import com.coconut.ui.AppIconCache
 import com.coconut.ui.AppLoadingState
 import com.coconut.ui.InstalledApp
@@ -83,11 +84,24 @@ import com.coconut.ui.LemonTheme
 import com.coconut.ui.MainViewModel
 import com.coconut.ui.components.LemonBadge
 import com.coconut.ui.components.LemonBadgeStyle
+import com.coconut.ui.components.LemonCard
 import com.coconut.ui.components.LemonEmptyState
+import com.coconut.ui.components.LemonMetricWell
 import com.coconut.ui.components.LemonSearchField
+import com.coconut.ui.components.LemonSectionEyebrow
 import com.coconut.ui.components.LemonSegmentItem
 import com.coconut.ui.components.LemonSegmentedControl
 
+/**
+ * Redesigned Snap Screen conforming to the Fruit Family design system.
+ * Features:
+ * - Unbounded geometric header with Lemon brand identity
+ * - Metric summary block for restricted application status
+ * - Distinctive Quarantine self-control session card with countdown
+ * - Responsive 12dp search and segmented controls
+ * - Polished 16dp content cards with category badges and instant Snap actions
+ * - Accessible 24dp dialogs and bottom sheets with strict 48dp minimum touch targets
+ */
 @Composable
 fun SnapScreen(viewModel: MainViewModel) {
     val state by viewModel.state.collectAsState()
@@ -148,47 +162,70 @@ fun SnapScreen(viewModel: MainViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 20.dp, bottom = 140.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        contentPadding = PaddingValues(top = 16.dp, bottom = 140.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Status bar top spacing
         item(key = "status_bar_spacing") {
             Spacer(modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars))
         }
 
-        // 1. Page Header (Large 34sp Title + Counter)
+        // 1. Page Header (Fruit Family PageShell pattern with Unbounded display title)
         item(key = "header") {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f, fill = false)) {
-                    Text(
-                        text = "The Snap",
-                        style = LemonTheme.typography.displayLarge.copy(
-                            fontSize = 34.sp,
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = LemonTheme.colors.textPrimary
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = restrictedGrammarText,
-                        style = LemonTheme.typography.bodyMedium.copy(
-                            fontSize = 15.sp
-                        ),
-                        color = LemonTheme.colors.textSecondary
-                    )
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Surface(
+                            shape = LemonTheme.shapes.iconSquircle,
+                            color = LemonTheme.colors.cardSecondaryBackground,
+                            border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.ic_lemon_mark),
+                                    contentDescription = "Lemon Logo",
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+
+                        Column {
+                            Text(
+                                text = "The Snap",
+                                style = LemonTheme.typography.displayLarge.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = LemonTheme.colors.textPrimary
+                            )
+                        }
+                    }
+
+                    if (state.isStrictModeActive) {
+                        LemonBadge(
+                            text = "Strict Mode",
+                            style = LemonBadgeStyle.WARNING
+                        )
+                    }
                 }
 
-                if (state.isStrictModeActive) {
-                    LemonBadge(
-                        text = "Strict Mode",
-                        style = LemonBadgeStyle.WARNING,
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
-                }
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = "Instant on-device app launch interception and focus enforcement.",
+                    style = LemonTheme.typography.bodyMedium,
+                    color = LemonTheme.colors.textSecondary
+                )
             }
         }
 
@@ -218,7 +255,7 @@ fun SnapScreen(viewModel: MainViewModel) {
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Accessibility required",
+                                    text = "Accessibility Service Required",
                                     style = LemonTheme.typography.titleSmall.copy(
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold
@@ -228,7 +265,7 @@ fun SnapScreen(viewModel: MainViewModel) {
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Required to enforce app restrictions.",
+                                text = "Lemon requires Accessibility to observe launched apps and return home instantly.",
                                 style = LemonTheme.typography.bodySmall.copy(
                                     fontSize = 13.sp
                                 ),
@@ -257,7 +294,7 @@ fun SnapScreen(viewModel: MainViewModel) {
             }
         }
 
-        // 3. Quarantine Self-Control Section (Requirement 13)
+        // 3. Quarantine Self-Control Section
         item(key = "quarantine_section") {
             if (state.isQuarantineActive) {
                 val totalSecs = state.quarantineRemainingSeconds
@@ -266,223 +303,215 @@ fun SnapScreen(viewModel: MainViewModel) {
                 val secs = totalSecs % 60
                 val timerFormatted = String.format("%02d:%02d:%02d", hrs, mins, secs)
 
-                Surface(
-                    shape = LemonTheme.shapes.card,
-                    color = LemonTheme.colors.warningContainer,
-                    border = BorderStroke(1.dp, LemonTheme.colors.warning.copy(alpha = 0.4f)),
-                    modifier = Modifier.fillMaxWidth()
+                LemonCard(
+                    backgroundColor = LemonTheme.colors.cardBackground,
+                    borderColor = LemonTheme.colors.warning.copy(alpha = 0.4f)
                 ) {
-                    Column(modifier = Modifier.padding(18.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(LemonTheme.colors.warning.copy(alpha = 0.2f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.HourglassTop,
-                                        contentDescription = null,
-                                        tint = LemonTheme.colors.warning,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text(
-                                        text = "Quarantine Active",
-                                        style = LemonTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = LemonTheme.colors.onWarningContainer
-                                    )
-                                    Text(
-                                        text = "${state.quarantinedPackages.size} apps temporarily blocked",
-                                        style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                        color = LemonTheme.colors.onWarningContainer.copy(alpha = 0.85f)
-                                    )
-                                }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(LemonTheme.shapes.iconSquircle)
+                                    .background(LemonTheme.colors.warning.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.HourglassTop,
+                                    contentDescription = null,
+                                    tint = LemonTheme.colors.brandAmber,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
-
-                            LemonBadge(
-                                text = "LOCKED",
-                                style = LemonBadgeStyle.DANGER,
-                                showDot = true
-                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Quarantine Active",
+                                    style = LemonTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = LemonTheme.colors.textPrimary
+                                )
+                                Text(
+                                    text = "${state.quarantinedPackages.size} apps temporarily locked",
+                                    style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                    color = LemonTheme.colors.textSecondary
+                                )
+                            }
                         }
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        LemonBadge(
+                            text = "LOCKED",
+                            style = LemonBadgeStyle.DANGER,
+                            showDot = true
+                        )
+                    }
 
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    LemonMetricWell {
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(LemonTheme.colors.cardBackground)
-                                .padding(vertical = 12.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = timerFormatted,
                                 style = LemonTheme.typography.displayMedium.copy(
-                                    fontSize = 32.sp,
+                                    fontSize = 30.sp,
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.sp
                                 ),
                                 color = LemonTheme.colors.textPrimary
                             )
                         }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Cannot be cancelled, paused or shortened. DNS protection locked ON.",
-                            style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = LemonTheme.colors.onWarningContainer.copy(alpha = 0.85f),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
                     }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Cannot be cancelled, paused or shortened. Local DNS is locked ON.",
+                        style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        color = LemonTheme.colors.textSecondary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             } else {
-                Surface(
-                    shape = LemonTheme.shapes.card,
-                    color = LemonTheme.colors.cardBackground,
-                    border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(18.dp)) {
+                LemonCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(LemonTheme.shapes.iconSquircle)
+                                    .background(LemonTheme.colors.brandYellow.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.HourglassTop,
+                                    contentDescription = null,
+                                    tint = LemonTheme.colors.brandAmber,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Quarantine Mode",
+                                    style = LemonTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = LemonTheme.colors.textPrimary
+                                )
+                                Text(
+                                    text = "Impose an irreversible focus countdown",
+                                    style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                    color = LemonTheme.colors.textSecondary
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = { showQuarantineSetup = !showQuarantineSetup },
+                            shape = LemonTheme.shapes.button,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = LemonTheme.colors.cardSecondaryBackground,
+                                contentColor = LemonTheme.colors.textPrimary
+                            ),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = if (showQuarantineSetup) "Hide" else "Setup",
+                                style = LemonTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+                    }
+
+                    if (showQuarantineSetup) {
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        val durationInt = quarantineDurationSlider.toInt()
+                        val hrs = durationInt / 60
+                        val mins = durationInt % 60
+                        val durationFormatted = if (hrs > 0 && mins > 0) "${hrs} hr ${mins} min" else if (hrs > 0) "${hrs} hr" else "${mins} min"
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(LemonTheme.colors.primaryAccent.copy(alpha = 0.15f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.HourglassTop,
-                                        contentDescription = null,
-                                        tint = LemonTheme.colors.textAccent,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text(
-                                        text = "Quarantine Mode",
-                                        style = LemonTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = LemonTheme.colors.textPrimary
-                                    )
-                                    Text(
-                                        text = "Impose a strict temporary self-control window",
-                                        style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                        color = LemonTheme.colors.textSecondary
-                                    )
-                                }
-                            }
+                            Text(
+                                text = "Duration: $durationFormatted",
+                                style = LemonTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = LemonTheme.colors.textPrimary
+                            )
+                            Text(
+                                text = "30m – 5h",
+                                style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                color = LemonTheme.colors.textSecondary
+                            )
+                        }
 
-                            Button(
-                                onClick = { showQuarantineSetup = !showQuarantineSetup },
+                        Slider(
+                            value = quarantineDurationSlider,
+                            onValueChange = { quarantineDurationSlider = it },
+                            valueRange = 30f..300f,
+                            steps = 8,
+                            colors = SliderDefaults.colors(
+                                thumbColor = LemonTheme.colors.brandAmber,
+                                activeTrackColor = LemonTheme.colors.primaryAccent
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(
+                                onClick = { showQuarantineAppPicker = true },
                                 shape = LemonTheme.shapes.button,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = LemonTheme.colors.cardSecondaryBackground,
-                                    contentColor = LemonTheme.colors.textPrimary
-                                ),
+                                border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                             ) {
                                 Text(
-                                    text = if (showQuarantineSetup) "Hide" else "Setup",
-                                    style = LemonTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-                                )
-                            }
-                        }
-
-                        if (showQuarantineSetup) {
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            val durationInt = quarantineDurationSlider.toInt()
-                            val hrs = durationInt / 60
-                            val mins = durationInt % 60
-                            val durationFormatted = if (hrs > 0 && mins > 0) "${hrs} hr ${mins} min" else if (hrs > 0) "${hrs} hr" else "${mins} min"
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Duration: $durationFormatted",
-                                    style = LemonTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    text = "Select Apps (${quarantineSelectedPackages.size})",
+                                    style = LemonTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                                     color = LemonTheme.colors.textPrimary
                                 )
-                                Text(
-                                    text = "30m – 5h",
-                                    style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                    color = LemonTheme.colors.textSecondary
-                                )
                             }
 
-                            Slider(
-                                value = quarantineDurationSlider,
-                                onValueChange = { quarantineDurationSlider = it },
-                                valueRange = 30f..300f,
-                                steps = 8,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = LemonTheme.colors.primaryAccent,
-                                    activeTrackColor = LemonTheme.colors.primaryAccent
+                            Button(
+                                onClick = {
+                                    if (activity != null) {
+                                        viewModel.startQuarantineSession(
+                                            activity = activity,
+                                            durationMinutes = durationInt,
+                                            packages = quarantineSelectedPackages
+                                        )
+                                    }
+                                },
+                                enabled = quarantineSelectedPackages.isNotEmpty(),
+                                shape = LemonTheme.shapes.button,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = LemonTheme.colors.primaryAccent,
+                                    contentColor = LemonTheme.colors.onPrimaryAccent
                                 ),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
                             ) {
-                                OutlinedButton(
-                                    onClick = { showQuarantineAppPicker = true },
-                                    shape = LemonTheme.shapes.button,
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                                ) {
-                                    Text(
-                                        text = "Select Apps (${quarantineSelectedPackages.size})",
-                                        style = LemonTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
-                                    )
-                                }
-
-                                Button(
-                                    onClick = {
-                                        if (activity != null) {
-                                            viewModel.startQuarantineSession(
-                                                activity = activity,
-                                                durationMinutes = durationInt,
-                                                packages = quarantineSelectedPackages
-                                            )
-                                        }
-                                    },
-                                    enabled = quarantineSelectedPackages.isNotEmpty(),
-                                    shape = LemonTheme.shapes.button,
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = LemonTheme.colors.primaryAccent,
-                                        contentColor = LemonTheme.colors.onPrimaryAccent
-                                    ),
-                                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
-                                ) {
-                                    Text(
-                                        text = "Start Quarantine",
-                                        style = LemonTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
-                                    )
-                                }
+                                Text(
+                                    text = "Start Quarantine",
+                                    style = LemonTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                                )
                             }
                         }
                     }
@@ -490,16 +519,16 @@ fun SnapScreen(viewModel: MainViewModel) {
             }
         }
 
-        // 4. Search Field (Capsule 48dp)
+        // 4. Search Field (Fruit Family 12dp rounded-xl search)
         item(key = "search") {
             LemonSearchField(
                 query = state.searchQuery,
                 onQueryChange = viewModel::setSearchQuery,
-                placeholder = "Search installed apps..."
+                placeholder = "Search installed applications..."
             )
         }
 
-        // 4. Status Filter Segmented Pill Control (All / Snapped / Available)
+        // 5. Status Filter Segmented Pill Control (All / Snapped / Available)
         item(key = "status_filters") {
             val segmentItems = listOf(
                 LemonSegmentItem(id = "All", title = "All", count = state.installedApps.size),
@@ -517,7 +546,7 @@ fun SnapScreen(viewModel: MainViewModel) {
             )
         }
 
-        // 5. Category Filter Chips (if more than 2 categories exist)
+        // 6. Category Filter Chips
         if (availableCategories.size > 2) {
             item(key = "category_filters") {
                 LazyRow(
@@ -542,7 +571,7 @@ fun SnapScreen(viewModel: MainViewModel) {
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = LemonTheme.colors.primaryAccent,
                                 selectedLabelColor = LemonTheme.colors.onPrimaryAccent,
-                                containerColor = LemonTheme.colors.cardSecondaryBackground,
+                                containerColor = LemonTheme.colors.cardBackground,
                                 labelColor = LemonTheme.colors.textSecondary
                             ),
                             border = FilterChipDefaults.filterChipBorder(
@@ -556,13 +585,19 @@ fun SnapScreen(viewModel: MainViewModel) {
             }
         }
 
-        // 6. Application Loading State Machine & Rows
+        // 7. Eyebrow Counter Label
+        item(key = "results_eyebrow") {
+            LemonSectionEyebrow(
+                title = if (filteredApps.isEmpty()) "APPLICATIONS" else "APPLICATIONS (${filteredApps.size})"
+            )
+        }
+
+        // 8. Application Loading State Machine & Rows
         val isInitialLoading = state.appLoadingState == AppLoadingState.INITIAL_LOADING ||
                 (state.appLoadingState == AppLoadingState.LOADING && state.installedApps.isEmpty())
 
         if (isInitialLoading) {
-            // High-polish skeleton placeholder list during package query
-            items(6) { index ->
+            items(6) {
                 LemonSkeletonRow()
             }
         } else if (state.appLoadingState == AppLoadingState.ERROR && state.installedApps.isEmpty()) {
@@ -642,7 +677,7 @@ fun SnapScreen(viewModel: MainViewModel) {
             title = {
                 Text(
                     text = "Select Quarantined Apps",
-                    style = LemonTheme.typography.titleLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
+                    style = LemonTheme.typography.titleLarge.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
                     color = LemonTheme.colors.textPrimary
                 )
             },
@@ -670,7 +705,7 @@ fun SnapScreen(viewModel: MainViewModel) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(LemonTheme.shapes.iconSquircle)
                                     .clickable {
                                         tempSelected = if (isChecked) {
                                             tempSelected - app.packageName
@@ -678,7 +713,7 @@ fun SnapScreen(viewModel: MainViewModel) {
                                             tempSelected + app.packageName
                                         }
                                     }
-                                    .padding(vertical = 4.dp, horizontal = 4.dp),
+                                    .padding(vertical = 6.dp, horizontal = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Checkbox(
@@ -691,7 +726,8 @@ fun SnapScreen(viewModel: MainViewModel) {
                                         }
                                     },
                                     colors = CheckboxDefaults.colors(
-                                        checkedColor = LemonTheme.colors.primaryAccent
+                                        checkedColor = LemonTheme.colors.primaryAccent,
+                                        checkmarkColor = LemonTheme.colors.onPrimaryAccent
                                     )
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -724,7 +760,10 @@ fun SnapScreen(viewModel: MainViewModel) {
                         contentColor = LemonTheme.colors.onPrimaryAccent
                     )
                 ) {
-                    Text("Confirm Selection (${tempSelected.size})", style = LemonTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                    Text(
+                        text = "Confirm Selection (${tempSelected.size})",
+                        style = LemonTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                    )
                 }
             },
             dismissButton = {
@@ -749,7 +788,7 @@ fun SnapScreen(viewModel: MainViewModel) {
                 Text(
                     text = "Confirm Snap",
                     style = LemonTheme.typography.titleLarge.copy(
-                        fontSize = 20.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     ),
                     color = LemonTheme.colors.textPrimary
@@ -760,7 +799,7 @@ fun SnapScreen(viewModel: MainViewModel) {
                     Text(
                         text = "Restrict ${targetApp.label}?",
                         style = LemonTheme.typography.titleMedium.copy(
-                            fontSize = 17.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = LemonTheme.colors.textPrimary
@@ -793,7 +832,7 @@ fun SnapScreen(viewModel: MainViewModel) {
                             imeAction = ImeAction.Done
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = LemonTheme.colors.primaryAccent,
+                            focusedBorderColor = LemonTheme.colors.brandAmber,
                             unfocusedBorderColor = LemonTheme.colors.cardBorder,
                             focusedContainerColor = LemonTheme.colors.cardSecondaryBackground,
                             unfocusedContainerColor = LemonTheme.colors.cardSecondaryBackground,
@@ -839,7 +878,7 @@ fun SnapScreen(viewModel: MainViewModel) {
         )
     }
 
-    // Accessibility Disclosure Dialog (3 Structured Disclosure Rows)
+    // Accessibility Disclosure Dialog
     if (showAccessibilityDisclosure) {
         AlertDialog(
             onDismissRequest = { showAccessibilityDisclosure = false },
@@ -850,14 +889,14 @@ fun SnapScreen(viewModel: MainViewModel) {
                     Icon(
                         imageVector = Icons.Default.Security,
                         contentDescription = null,
-                        tint = LemonTheme.colors.primaryAccent,
+                        tint = LemonTheme.colors.brandAmber,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "Accessibility Disclosure",
                         style = LemonTheme.typography.titleLarge.copy(
-                            fontSize = 20.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         ),
                         color = LemonTheme.colors.textPrimary
@@ -877,19 +916,16 @@ fun SnapScreen(viewModel: MainViewModel) {
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Row 1: Foreground transitions only
                     DisclosurePointRow(
                         icon = Icons.Default.Lock,
                         text = "Detects foreground transitions of snapped apps only."
                     )
 
-                    // Row 2: Never reads content
                     DisclosurePointRow(
                         icon = Icons.Default.VisibilityOff,
                         text = "Never inspects screen content, text, passwords or keystrokes."
                     )
 
-                    // Row 3: Zero network collection
                     DisclosurePointRow(
                         icon = Icons.Default.CheckCircle,
                         text = "Zero data is collected or transmitted off your device."
@@ -948,13 +984,13 @@ private fun DisclosurePointRow(
                 .padding(top = 2.dp)
                 .size(24.dp)
                 .clip(CircleShape)
-                .background(LemonTheme.colors.primaryAccent.copy(alpha = 0.15f)),
+                .background(LemonTheme.colors.brandYellow.copy(alpha = 0.25f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = LemonTheme.colors.textAccent,
+                tint = LemonTheme.colors.brandAmber,
                 modifier = Modifier.size(14.dp)
             )
         }
@@ -983,17 +1019,12 @@ private fun LemonAppRow(
         iconBitmap = AppIconCache.loadIcon(context, app.packageName)
     }
 
-    Surface(
-        shape = LemonTheme.shapes.card,
-        color = if (isSnapped) LemonTheme.colors.cardSecondaryBackground else LemonTheme.colors.cardBackground,
-        border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
-        shadowElevation = 0.dp,
-        modifier = Modifier.fillMaxWidth()
+    LemonCard(
+        backgroundColor = if (isSnapped) LemonTheme.colors.cardSecondaryBackground else LemonTheme.colors.cardBackground,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // App Icon in 12dp squircle
@@ -1030,7 +1061,7 @@ private fun LemonAppRow(
                 Text(
                     text = app.label,
                     style = LemonTheme.typography.titleMedium.copy(
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = LemonTheme.colors.textPrimary,
@@ -1041,7 +1072,7 @@ private fun LemonAppRow(
                 Text(
                     text = app.category,
                     style = LemonTheme.typography.bodySmall.copy(
-                        fontSize = 13.sp
+                        fontSize = 12.sp
                     ),
                     color = LemonTheme.colors.textSecondary,
                     maxLines = 1,
@@ -1089,16 +1120,11 @@ private data class Quadruple<A, B, C, D>(
 
 @Composable
 private fun LemonSkeletonRow() {
-    Surface(
-        shape = LemonTheme.shapes.card,
-        color = LemonTheme.colors.cardBackground,
-        border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
-        modifier = Modifier.fillMaxWidth()
+    LemonCard(
+        contentPadding = PaddingValues(14.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(

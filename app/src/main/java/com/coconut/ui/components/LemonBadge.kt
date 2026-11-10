@@ -33,7 +33,7 @@ enum class LemonBadgeStyle {
 }
 
 /**
- * Premium semantic badge with color-matched indicator dot and high-contrast typography.
+ * Fruit Family semantic badge with color-matched indicator dot and high-contrast typography.
  * Strictly guarantees single-line text without wrapping or clipping.
  */
 @Composable
@@ -45,28 +45,28 @@ fun LemonBadge(
     customColor: Color? = null
 ) {
     val (foregroundColor, backgroundColor, borderColor) = if (customColor != null) {
-        Triple(customColor, customColor.copy(alpha = 0.12f), customColor.copy(alpha = 0.28f))
+        Triple(customColor, customColor.copy(alpha = 0.12f), customColor.copy(alpha = 0.24f))
     } else {
         when (style) {
             LemonBadgeStyle.SUCCESS -> Triple(
                 LemonTheme.colors.success,
                 LemonTheme.colors.successContainer,
-                LemonTheme.colors.success.copy(alpha = 0.25f)
+                LemonTheme.colors.success.copy(alpha = 0.22f)
             )
             LemonBadgeStyle.WARNING -> Triple(
                 LemonTheme.colors.warning,
                 LemonTheme.colors.warningContainer,
-                LemonTheme.colors.warning.copy(alpha = 0.30f)
+                LemonTheme.colors.warning.copy(alpha = 0.25f)
             )
             LemonBadgeStyle.DANGER -> Triple(
                 LemonTheme.colors.danger,
                 LemonTheme.colors.dangerContainer,
-                LemonTheme.colors.danger.copy(alpha = 0.30f)
+                LemonTheme.colors.danger.copy(alpha = 0.25f)
             )
             LemonBadgeStyle.INFO -> Triple(
                 LemonTheme.colors.info,
                 LemonTheme.colors.infoContainer,
-                LemonTheme.colors.info.copy(alpha = 0.25f)
+                LemonTheme.colors.info.copy(alpha = 0.22f)
             )
             LemonBadgeStyle.INACTIVE -> Triple(
                 LemonTheme.colors.inactive,
@@ -74,9 +74,9 @@ fun LemonBadge(
                 LemonTheme.colors.cardBorder
             )
             LemonBadgeStyle.SCHEDULED -> Triple(
-                LemonTheme.colors.textAccent,
+                LemonTheme.colors.brandAmber,
                 LemonTheme.colors.warningContainer,
-                LemonTheme.colors.warning.copy(alpha = 0.30f)
+                LemonTheme.colors.warning.copy(alpha = 0.25f)
             )
         }
     }
@@ -88,7 +88,7 @@ fun LemonBadge(
         border = BorderStroke(1.dp, borderColor)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.5.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (showDot) {
@@ -103,8 +103,9 @@ fun LemonBadge(
             Text(
                 text = text,
                 style = LemonTheme.typography.labelSmall.copy(
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.3.sp
                 ),
                 color = foregroundColor,
                 maxLines = 1,
@@ -114,4 +115,3 @@ fun LemonBadge(
         }
     }
 }
-

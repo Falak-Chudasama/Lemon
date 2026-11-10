@@ -23,8 +23,11 @@ signing.properties
 # APK & Bundle outputs
 *.apk
 *.aab
+*.dex
 
 # Logs & Captures
 *.log
 captures/
 test-reports/
+*.crash.txt
+scratch/

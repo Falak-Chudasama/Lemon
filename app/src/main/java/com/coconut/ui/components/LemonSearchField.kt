@@ -3,11 +3,11 @@ package com.coconut.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,7 +35,8 @@ import androidx.compose.ui.unit.sp
 import com.coconut.ui.LemonTheme
 
 /**
- * Capsule search field adhering to Lemon 48dp touch targets and iOS-like pill styling.
+ * Fruit Family search field adhering to 12dp rounded-xl geometry,
+ * clean stone surfaces, accessible 48dp touch targets, and two-tier focus ring feedback.
  */
 @Composable
 fun LemonSearchField(
@@ -45,17 +47,25 @@ fun LemonSearchField(
     onSearchAction: (() -> Unit)? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+
+    val shape = RoundedCornerShape(12.dp)
+    val borderColor = if (isFocused) {
+        LemonTheme.colors.brandAmber
+    } else {
+        LemonTheme.colors.cardBorder
+    }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(100.dp))
-            .background(LemonTheme.colors.cardSecondaryBackground)
+            .clip(shape)
+            .background(LemonTheme.colors.cardBackground)
             .border(
-                width = 1.dp,
-                color = LemonTheme.colors.cardBorder,
-                shape = RoundedCornerShape(100.dp)
+                width = if (isFocused) 1.5.dp else 1.dp,
+                color = borderColor,
+                shape = shape
             )
             .padding(horizontal = 14.dp, vertical = 4.dp),
         contentAlignment = Alignment.CenterStart
@@ -67,7 +77,7 @@ fun LemonSearchField(
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = "Search",
-                tint = LemonTheme.colors.textTertiary,
+                tint = if (isFocused) LemonTheme.colors.brandAmber else LemonTheme.colors.textTertiary,
                 modifier = Modifier.size(20.dp)
             )
 
@@ -80,7 +90,7 @@ fun LemonSearchField(
                 if (query.isEmpty()) {
                     Text(
                         text = placeholder,
-                        style = LemonTheme.typography.bodyMedium.copy(fontSize = 15.sp),
+                        style = LemonTheme.typography.bodyMedium.copy(fontSize = 14.sp),
                         color = LemonTheme.colors.textPlaceholder
                     )
                 }
@@ -90,10 +100,10 @@ fun LemonSearchField(
                     onValueChange = onQueryChange,
                     singleLine = true,
                     textStyle = LemonTheme.typography.bodyMedium.copy(
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
                         color = LemonTheme.colors.textPrimary
                     ),
-                    cursorBrush = SolidColor(LemonTheme.colors.primaryAccent),
+                    cursorBrush = SolidColor(LemonTheme.colors.brandAmber),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { onSearchAction?.invoke() }),
                     interactionSource = interactionSource,
@@ -117,4 +127,3 @@ fun LemonSearchField(
         }
     }
 }
-

@@ -23,11 +23,9 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.outlined.HourglassTop
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Shield
@@ -42,7 +40,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -56,22 +53,21 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coconut.ui.LemonTheme
-import com.coconut.ui.NavigationTab
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-// Electric blue brand accent for the iOS reference selected capsule
-val ElectricBlueStart = Color(0xFF007AFF)
-val ElectricBlueEnd = Color(0xFF0A58CA)
-val ElectricBlueGlow = Color(0x66007AFF)
+// Fruit family brand accents for the moving capsule indicator
+val LemonIndicatorStart = Color(0xFFFBDB7B)
+val LemonIndicatorEnd = Color(0xFFF9AF49)
+val LemonIndicatorGlow = Color(0x40F9AF49)
 
 /**
- * Premium floating translucent capsule navigation bar.
- * Matches the reference design with:
- * - Floating translucent glass capsule background with thin border and soft layered shadow
- * - Shared moving electric-blue indicator capsule that glides continuously with Pager swipe progress
- * - Crisp white icons & text on selected tab; refined muted typography on inactive tabs
- * - Fluid spring animation on tap & 1:1 finger tracking during horizontal swipe
+ * Fruit Family floating translucent capsule navigation bar.
+ * Matches Kiwi and Banana's quiet utility docked chrome:
+ * - Floating translucent glass capsule background with 1px border and soft layered shadow
+ * - Shared moving Lemon-brand indicator capsule that glides continuously with Pager swipe progress
+ * - High-contrast dark ink icon & text on active tab; refined stone typography on inactive tabs
+ * - Fluid spring animation on tap & 1:1 finger tracking during horizontal pager swipe
  */
 @Composable
 fun FloatingBottomBar(
@@ -102,7 +98,7 @@ fun FloatingBottomBar(
             shape = RoundedCornerShape(100.dp),
             color = LemonTheme.colors.navBackground,
             border = BorderStroke(1.dp, LemonTheme.colors.navBorder),
-            shadowElevation = 10.dp,
+            shadowElevation = if (LemonTheme.isDark) 12.dp else 6.dp,
             modifier = Modifier
                 .height(barHeight)
                 .fillMaxWidth()
@@ -121,18 +117,23 @@ fun FloatingBottomBar(
                 val currentPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction
                 val indicatorOffsetPx = (currentPosition * tabWidthPx).coerceIn(0f, totalWidthPx - tabWidthPx)
 
-                // Shared Moving Electric Blue Capsule Indicator
+                // Shared Moving Lemon Capsule Indicator
                 Box(
                     modifier = Modifier
                         .offset { IntOffset(indicatorOffsetPx.roundToInt(), 0) }
                         .width(tabWidthDp)
                         .fillMaxHeight()
                         .padding(horizontal = 2.dp, vertical = 2.dp)
-                        .shadow(elevation = 6.dp, shape = RoundedCornerShape(100.dp), ambientColor = ElectricBlueGlow, spotColor = ElectricBlueGlow)
+                        .shadow(
+                            elevation = 4.dp,
+                            shape = RoundedCornerShape(100.dp),
+                            ambientColor = LemonIndicatorGlow,
+                            spotColor = LemonIndicatorGlow
+                        )
                         .clip(RoundedCornerShape(100.dp))
                         .background(
                             brush = Brush.horizontalGradient(
-                                colors = listOf(ElectricBlueStart, ElectricBlueEnd)
+                                colors = listOf(LemonIndicatorStart, LemonIndicatorEnd)
                             )
                         )
                 )
@@ -147,8 +148,8 @@ fun FloatingBottomBar(
                         val distanceFromIndicator = abs(currentPosition - index).coerceIn(0f, 1f)
                         val isSelected = distanceFromIndicator < 0.5f
 
-                        // Cross-fade colors based on fractional distance
-                        val activeColor = Color.White
+                        // High contrast dark ink on the active lemon indicator
+                        val activeColor = Color(0xFF1C1B14)
                         val inactiveColor = LemonTheme.colors.textTertiary
                         val textColor = interpolateColor(activeColor, inactiveColor, distanceFromIndicator)
 

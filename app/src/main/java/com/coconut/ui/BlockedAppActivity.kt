@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -15,11 +16,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,21 +49,21 @@ class BlockedAppActivity : ComponentActivity() {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.78f))
+                        .background(Color.Black.copy(alpha = 0.75f))
                         .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Card(
-                        shape = LemonTheme.shapes.card,
-                        colors = CardDefaults.cardColors(
-                            containerColor = LemonTheme.colors.cardBackground
-                        ),
+                    Surface(
+                        shape = LemonTheme.shapes.dialog,
+                        color = LemonTheme.colors.cardBackground,
+                        border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
+                        shadowElevation = 16.dp,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(28.dp),
+                                .padding(horizontal = 28.dp, vertical = 32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
@@ -74,14 +73,15 @@ class BlockedAppActivity : ComponentActivity() {
                                 modifier = Modifier.size(56.dp)
                             )
 
-                            Spacer(modifier = Modifier.height(18.dp))
+                            Spacer(modifier = Modifier.height(20.dp))
 
                             Text(
                                 text = "Application Snapped",
                                 style = LemonTheme.typography.displaySmall.copy(
-                                    fontSize = 22.sp,
+                                    fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold
                                 ),
+                                textAlign = TextAlign.Center,
                                 color = LemonTheme.colors.textPrimary
                             )
 
@@ -90,14 +90,14 @@ class BlockedAppActivity : ComponentActivity() {
                             Text(
                                 text = "$appLabel is currently restricted by Lemon.",
                                 style = LemonTheme.typography.bodyMedium.copy(
-                                    fontSize = 15.sp,
-                                    lineHeight = 21.sp
+                                    fontSize = 14.sp,
+                                    lineHeight = 20.sp
                                 ),
                                 textAlign = TextAlign.Center,
                                 color = LemonTheme.colors.textSecondary
                             )
 
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(26.dp))
 
                             Button(
                                 onClick = {

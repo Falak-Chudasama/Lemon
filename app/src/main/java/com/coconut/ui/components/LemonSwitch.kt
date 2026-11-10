@@ -34,10 +34,10 @@ import androidx.compose.ui.unit.dp
 import com.coconut.ui.LemonTheme
 
 /**
- * Premium iOS-styled capsule switch component.
- * Exact dimensions: 51dp width x 31dp height track, 27dp circular thumb, 2dp inset margin.
+ * Fruit Family toggle switch component.
+ * Exact dimensions: 50dp width x 30dp height track, 26dp circular thumb, 2dp inset margin.
  * Smooth physics-based spring animation with tactile haptic feedback,
- * reduced motion support, and accessibility semantics.
+ * reduced motion support, and full accessibility semantics.
  */
 @Composable
 fun LemonSwitch(
@@ -69,7 +69,7 @@ fun LemonSwitch(
         label = "LemonSwitchTrackColor"
     )
 
-    // Track width: 51dp, thumb size: 27dp, margin: 2dp -> travel distance = 51 - 27 - 2 = 22dp
+    // Track width: 50dp, thumb size: 26dp, margin: 2dp -> travel distance = 50 - 26 - 2 = 22dp
     val thumbOffset by animateDpAsState(
         targetValue = if (checked) 22.dp else 2.dp,
         animationSpec = if (animatorScale == 0f) snap() else spring(
@@ -99,18 +99,18 @@ fun LemonSwitch(
             ),
         contentAlignment = Alignment.Center
     ) {
-        // Track: 51x31dp capsule
+        // Track: 50x30dp capsule
         Box(
             modifier = Modifier
-                .size(width = 51.dp, height = 31.dp)
+                .size(width = 50.dp, height = 30.dp)
                 .clip(RoundedCornerShape(100.dp))
                 .background(trackColor)
         ) {
-            // Thumb: 27dp circle with elevation
+            // Thumb: 26dp circle with soft elevation
             Box(
                 modifier = Modifier
                     .offset(x = thumbOffset, y = 2.dp)
-                    .size(27.dp)
+                    .size(26.dp)
                     .shadow(elevation = 2.dp, shape = CircleShape)
                     .clip(CircleShape)
                     .background(LemonTheme.colors.switchThumb)

@@ -43,7 +43,7 @@ enum class LemonBannerType {
 }
 
 /**
- * Top floating feedback banner with clear typography, status icon, and 48dp dismiss target.
+ * Top floating feedback toast banner with clear typography, status icon, and 48dp accessible dismiss target.
  */
 @Composable
 fun LemonFeedbackBanner(
@@ -68,33 +68,33 @@ fun LemonFeedbackBanner(
                 LemonTheme.colors.success,
                 LemonTheme.colors.successContainer,
                 LemonTheme.colors.onSuccessContainer,
-                LemonTheme.colors.success.copy(alpha = 0.3f)
+                LemonTheme.colors.success.copy(alpha = 0.25f)
             )
             LemonBannerType.WARNING -> Quintuple(
                 Icons.Default.Warning,
                 LemonTheme.colors.warning,
                 LemonTheme.colors.warningContainer,
                 LemonTheme.colors.onWarningContainer,
-                LemonTheme.colors.warning.copy(alpha = 0.3f)
+                LemonTheme.colors.warning.copy(alpha = 0.25f)
             )
             LemonBannerType.ERROR -> Quintuple(
                 Icons.Default.Error,
                 LemonTheme.colors.danger,
                 LemonTheme.colors.dangerContainer,
                 LemonTheme.colors.onDangerContainer,
-                LemonTheme.colors.danger.copy(alpha = 0.3f)
+                LemonTheme.colors.danger.copy(alpha = 0.25f)
             )
             LemonBannerType.INFO -> Quintuple(
                 Icons.Default.Info,
                 LemonTheme.colors.info,
                 LemonTheme.colors.infoContainer,
                 LemonTheme.colors.onInfoContainer,
-                LemonTheme.colors.info.copy(alpha = 0.3f)
+                LemonTheme.colors.info.copy(alpha = 0.25f)
             )
         }
 
         Surface(
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(16.dp),
             color = containerColor,
             border = BorderStroke(1.dp, borderColor),
             shadowElevation = 4.dp,
@@ -148,4 +148,3 @@ private data class Quintuple<A, B, C, D, E>(
     val fourth: D,
     val fifth: E
 )
-

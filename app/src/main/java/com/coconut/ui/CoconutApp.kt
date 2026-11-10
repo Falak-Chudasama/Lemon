@@ -11,21 +11,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,8 +56,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun CoconutApp(viewModel: MainViewModel) {
     val state by viewModel.state.collectAsState()
-    val context = LocalContext.current
-    val activity = context as? FragmentActivity
     val scope = rememberCoroutineScope()
 
     // Auto-dismiss transient banner after 4 seconds
@@ -99,7 +94,7 @@ fun CoconutApp(viewModel: MainViewModel) {
             }
         }
 
-        // Floating Bottom Navigation Bar with shared moving indicator
+        // Floating Bottom Navigation Bar with shared moving Lemon indicator
         FloatingBottomBar(
             pagerState = pagerState,
             onTabSelected = { targetPage ->
@@ -175,8 +170,7 @@ private fun AppLockScreen(onUnlockSuccess: () -> Unit) {
             Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = "Lemon Locked",
-                style = LemonTheme.typography.displaySmall.copy(
-                    fontSize = 28.sp,
+                style = LemonTheme.typography.displayMedium.copy(
                     fontWeight = FontWeight.Bold
                 ),
                 color = LemonTheme.colors.textPrimary
@@ -204,7 +198,7 @@ private fun AppLockScreen(onUnlockSuccess: () -> Unit) {
                         Icon(
                             imageVector = Icons.Default.Fingerprint,
                             contentDescription = "Fingerprint",
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(

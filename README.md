@@ -1,181 +1,260 @@
-# Coconut
+<div align="center">
+  <img src="icons/lemon-icon.png" alt="Lemon Icon" width="108" height="108" />
 
-Coconut is a native, privacy-first Android personal self-control and local DNS filtering application built with Kotlin and Jetpack Compose.
+  # Lemon
 
-It operates entirely on-device without cloud accounts, telemetry, external servers, root, Shizuku, or Device Owner requirements.
+  **Quiet, Private Android Self-Control & Local DNS Protection Workspace**
 
----
+  *An authoritative member of the Fruits product family featuring zero-latency foreground app interception, tamper-resistant 30-day delayed policy reconciliation, local loopback DNS threat blocking, and a precision quiet-utility interface built with Jetpack Compose.*
 
-## 1. Core Capabilities
+  <br />
 
-### 1.1 Snap (App Launch Interception)
-- **Foreground Detection**: Utilizes an Android `AccessibilityService` (`SnapAccessibilityService`) to detect foreground window and package transitions in real time.
-- **Immediate Return Home**: Automatically triggers `GLOBAL_ACTION_HOME` the instant a snapped application enters the foreground, dismissing the distracting application with zero artificial delay.
-- **Debounce Model**: Initial blocking decisions have 0ms latency. Debounce (250ms) applies strictly to duplicate window/content events for the *same* in-progress launch. When the home launcher or any permitted application is foregrounded, the tracker resets immediately so subsequent launches are blocked instantly.
-- **Blocked Screen**: Launches a dedicated, minimal `BlockedAppActivity` confirming the block with a single "Return Home" action.
-- **Overlay Fallback**: Uses `TYPE_ACCESSIBILITY_OVERLAY` when direct Activity dispatch is constrained by the system.
-- **Persistent Registry**: Retains Snap records in local Room database even if the target application is uninstalled. If reinstalled, Coconut detects the package via `PackageReconcileReceiver` and immediately re-enforces Snap.
-- **Protected System Services**: Automatically protects phone dialers, settings, Coconut itself, active home launchers, and input methods from being snapped.
+  [![Platform](https://img.shields.io/badge/Platform-Android%2010%2B%20(API%2029--36)-3DDC84?style=flat-square&logo=android)](https://developer.android.com)
+  [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?style=flat-square&logo=kotlin)](https://kotlinlang.org/)
+  [![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose%20M3-4285F4?style=flat-square&logo=jetpackcompose)](https://developer.android.com/jetpack/compose)
+  [![Room](https://img.shields.io/badge/Storage-Room%202.6%20(SQLite)-FFA000?style=flat-square)](https://developer.android.com/training/data-storage/room)
+  [![VpnService](https://img.shields.io/badge/Engine-Local%20TUN%20Loopback-2FA84F?style=flat-square)](#3-local-dns-engine)
+  [![HaGeZi Feeds](https://img.shields.io/badge/Threat%20Feeds-HaGeZi%20Multi%20PRO-F9AF49?style=flat-square)](https://github.com/hagezi/dns-blocklists)
+  [![Zero Telemetry](https://img.shields.io/badge/Privacy-100%25%20On--Device-FBDB7B?style=flat-square&colorA=121310&colorB=FBDB7B)](#-privacy--security-model)
+  [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
-### 1.2 Strict Mode
-- **Tamper Resistance**: Optional protection layer designed to prevent impulsive disabling of Coconut's enforcement.
-- **Settings Hierarchy Inspection**: Monitors Android Settings windows strictly when Strict Mode is enabled and Android Settings (`com.android.settings`, `com.google.android.settings`) is in the foreground. Traversal is bounded (max depth 5, max 50 nodes) to prevent navigating into Coconut's App Info, Accessibility service toggle, VPN settings, or Private DNS configuration.
-- **PBKDF2 Passcode Hashing**: Passcode hashed using `PBKDF2WithHmacSHA256` with 100,000 iterations and a cryptographically secure 16-byte random salt (`SecureRandom`).
-- **Time-Delayed Emergency Unlock**: Requests to disable Strict Mode initiate an irreversible 15-minute countdown timer followed by a 10-minute temporary unlock window.
+  <br />
 
-### 1.3 Local DNS Engine
-- **Local Virtual TUN Interface**: Utilizes Android `VpnService` (`CoconutVpnService`) to create a DNS-only loopback tunnel (`10.255.0.1/32` IPv4, `fd00::1/128` IPv6).
-- **IP-Prefix Routing**: Android `VpnService` routes IP traffic based on destination IP address prefixes (`addRoute("10.255.0.2", 32)` and `addRoute("fd00::2", 128)`), not by transport port. Standard device TCP/UDP internet traffic is never captured (`0.0.0.0/0` is not routed). Non-DNS packets addressed to the virtual endpoint are safely dropped.
-- **UDP Port 53 Support**: Full support for IPv4 and IPv6 UDP DNS queries.
-- **Mandatory IPv6 UDP Checksums**: Computes mandatory RFC 2460 / RFC 8200 UDP checksums across the IPv6 pseudo-header for all synthetic IPv6 responses. Computes IPv4 header and UDP checksums.
-- **TCP over TUN Limitation & TCP RST**: Coconut supports UDP DNS only. It does not implement a full user-space TCP state machine (handshake, sequence/ACK tracking, sliding window, retransmissions). When a client resolver attempts a TCP connection to port 53 of the virtual DNS IP, Coconut immediately returns a standard TCP RST packet, prompting the client/OS resolver to fall back to UDP port 53 without hanging.
-- **Deterministic Domain Matching**: Subdomain matching respects DNS label boundaries (e.g. `ads.example.com` matches `example.com`, but `badexample.com` does not). Supports IDN / Punycode domain normalization.
-- **Local Policy Resolution Order**:
-  1. Built-in HaGeZi Threat Intelligence (TIF Mini).
-  2. Built-in HaGeZi Adult Content (NSFW).
-  3. User Custom Allowlist (always overrides blocklists).
-  4. User Custom Blocklist (exact domains and subdomains).
-  5. Built-in HaGeZi Multi PRO Mini (Ads & Trackers).
-  6. Default: Allow.
-- **Synthetic NXDOMAIN**: Blocked queries receive immediate locally crafted `NXDOMAIN` (RFC 1035) responses and are never forwarded to the physical network.
-- **Local Bounded LRU Cache**: Memory-bounded cache (1,024 entries) with monotonic time TTL tracking (`SystemClock.elapsedRealtime()`). Policy checks always precede cache lookup.
-- **Physical Network Forwarding**: Permitted queries are forwarded through Android's underlying physical network using `DnsResolver.rawQuery` bound to `NET_CAPABILITY_NOT_VPN` to prevent tunnel routing loops.
-- **Always-on VPN Support**: Declares `android.net.VpnService.SUPPORTS_ALWAYS_ON` in manifest without requiring VPN lockdown.
-- **Zero DNS Logging**: DNS query history is completely disabled by default for absolute privacy.
+  <p align="center">
+    <a href="#-overview">Overview</a> •
+    <a href="#-fruits-ecosystem--design-system">Design System</a> •
+    <a href="#-core-capabilities">Capabilities</a> •
+    <a href="#-technical-architecture">Architecture</a> •
+    <a href="#-building-from-source">Build & Install</a> •
+    <a href="#-verification--testing">Verification</a> •
+    <a href="#-privacy--security-model">Privacy & Security</a>
+  </p>
+</div>
 
 ---
 
-## 2. Requirements
+## 🌟 Overview
 
-- **Android Version**: Android 10 (API level 29) or higher.
-- **Permissions**:
-  - Accessibility Service (`SnapAccessibilityService`): Required for foreground app launch detection.
-  - VPN Service (`CoconutVpnService`): Required for local DNS filtering.
-  - Post Notifications: Required for VPN foreground service status notification on Android 13+.
-- **No Root or Shizuku**: Standard unprivileged Android installation.
-- **No Developer Options**: ADB and USB debugging are not required.
+**Lemon** is a modern, privacy-first Android personal self-control and local DNS filtering utility. Built strictly within the **Fruits** design philosophy alongside **Banana** and **Kiwi**, Lemon combines an obsessive focus on quiet, distraction-free utility with robust, on-device enforcement mechanisms.
+
+Lemon operates entirely on your physical device. It requires **zero accounts, zero subscriptions, zero cloud telemetry, zero remote servers, no root access, and no Shizuku daemon**.
+
+### Why Lemon?
+
+* ⚡ **Zero-Latency The Snap** — Detects foreground transitions in real time via an Android `AccessibilityService` (`SnapAccessibilityService`) and triggers an immediate return to the launcher with 0ms artificial delay.
+* ⏳ **Quarantine & 30-Day Delay Mechanism** — Put impulsive or addictive applications in a probationary quarantine. Removal or whitelist modifications mandate an irreversible 30-day pending countdown to defeat impulsive habit relapses.
+* 🛡️ **Local Loopback DNS Firewall** — Intercepts UDP port 53 DNS queries via a local virtual `VpnService` TUN interface (`10.255.0.2` / `fd00::2`). Non-DNS traffic is never captured, leaving device network throughput and latency untouched.
+* 🔒 **Strict Mode with Tamper Prevention** — Protects core device settings and accessibility toggles using bounded accessibility tree inspection and PBKDF2 passcode verification with 100,000 iterations.
+* 🌿 **Fruits Ecosystem Cohesion** — Shares typography, component proportions, metric wells, high-contrast segmented pill controls, floating glass capsules, and semantic warm-palette tokens with Banana and Kiwi.
 
 ---
 
-## 3. Building from Source
+## 🎨 Fruits Ecosystem & Design System
+
+Lemon implements the authoritative design specification documented across the Fruits application suite (`Basket/docs/UI`):
+
+### 1. Palette & Surface Tokens
+
+| Token | Light Theme | Dark Theme (Obsidian) | Role / Usage |
+| :--- | :--- | :--- | :--- |
+| **Canvas** | `#F8F9F5` (Warm Cream White) | `#121310` (Obsidian Warm Black) | Application window root background |
+| **Card Surface** | `#FFFFFF` | `#181915` (Lifted Obsidian) | Screen cards, grouped containers, wells |
+| **Card Border** | `1px rgba(0, 0, 0, 0.06)` | `1px rgba(255, 255, 255, 0.08)` | Subtle boundary separation |
+| **Primary Accent** | `#FBDB7B` (Lemon Yellow) | `#FBDB7B` (Lemon Yellow) | Active indicators, focus rings, brand badges |
+| **Accent Text** | `#1C1B14` (Deep Ink) | `#1C1B14` (Deep Ink) | Text on primary lemon accent surfaces (always dark) |
+| **Secondary Accent** | `#F9AF49` / `#D97706` (Amber) | `#F9AF49` / `#D97706` (Amber) | Pending 30-day requests, warnings, badges |
+| **Success / Protection** | `#89D66D` / `#2FA84F` (Leaf Green)| `#89D66D` / `#2FA84F` (Leaf Green)| Active switches, secure states, protected counts |
+| **Danger / Blocked** | `#DC2626` (Red) | `#EF4444` (Red) | Denied rules, blocked attempt counters, resets |
+| **Text Primary** | `#1C1B14` | `#EDEDED` | Headings, primary labels, values |
+| **Text Secondary** | `#6B7280` | `#9CA3AF` | Supporting descriptions, timestamps |
+| **Text Muted** | `#9CA3AF` | `#6B7280` | Eyebrow captions, auxiliary notes |
+
+### 2. Typography Hierarchy
+
+* **Display & Hero Headings**: `Unbounded` (Bold, SemiBold, Medium)  
+  * Used for screen titles, metric values, hero banners, and brand headers (`fontSize: 20sp–28sp`, tight tracking `-0.02em`).
+* **Interface & Body Typography**: `Host Grotesk` (Regular, Medium, SemiBold, Bold)  
+  * Used for section eyebrows, body descriptions, list item labels, input fields, and pill chips (`fontSize: 11sp–16sp`).
+
+### 3. Precision UI Component Library
+
+Lemon replaces standard Material rectangles with bespoke, responsive Fruit components:
+
+* **`FloatingBottomBar`**: A 56dp translucent glass capsule (`RoundedCornerShape(28.dp)`) floating 20dp above the gesture navigation bar with real-time horizontal pill slide tracking.
+* **`LemonCard` & `LemonGroupedContainer`**: 16dp rounded card containers with hairline borders, optional interactive feedback, and inset divider management.
+* **`LemonMetricWell`**: Compact stat widgets displaying hero count metrics with Unbounded numerals and Host Grotesk micro-labels.
+* **`LemonSegmentedControl`**: High-contrast sliding pill selector with integrated numerical badges.
+* **`LemonSwitch`**: Custom 48dp tactile toggle with spring animation and leaf-green active state.
+* **`LemonSearchField`**: 12dp search bar featuring clear action and two-tier focus ring.
+* **`LemonBadge`**: Pill chips with pulse status dots for runtime telemetry.
+* **`LemonFeedbackBanner`**: Transient top-docked glass notification capsule for confirmations.
+
+---
+
+## ⚡ Core Capabilities
+
+### 1. The Snap (Foreground Launch Interception)
+* **Foreground Window Monitoring**: Leverages `SnapAccessibilityService` to listen for `TYPE_WINDOW_STATE_CHANGED` events across package boundaries.
+* **Immediate Dismissal**: Executes `GLOBAL_ACTION_HOME` the millisecond an intercepted application enters the foreground.
+* **Dual Feedback Channel**: Dispatches a minimal, distraction-free `BlockedAppActivity` or an accessibility overlay fallback (`TYPE_ACCESSIBILITY_OVERLAY`) if direct Activity dispatch is constrained by the OS.
+* **Package Reconciliation**: When apps are uninstalled and later re-installed, Lemon's `PackageReconcileReceiver` immediately recognizes the package from the Room database and restores Snap enforcement.
+* **Protected System Components**: System dialers, launchers, input methods, and Android Settings are guarded against accidental interception.
+
+### 2. Quarantine Mode & 30-Day Delay Mechanism
+* **Probationary App Isolation**: Apps flagged for quarantine remain blocked until their scheduled quarantine period expires.
+* **Tamper-Resistant Countdown**: Removing an app or unlocking a blocked domain requires filing an unlock request that enters an un-skippable 30-day countdown timer (`System.currentTimeMillis() + 30.days`).
+* **Habit Rewiring**: By eliminating the instant gratification of unblocking, impulsive social media checks and algorithmic scrolling habits are broken permanently.
+
+### 3. Local DNS Engine
+* **Virtual TUN Interface**: Uses Android `VpnService` (`CoconutVpnService`) to create a DNS-only loopback tunnel (`10.255.0.1/32` IPv4, `fd00::1/128` IPv6).
+* **Port-53 UDP Processing**: Receives and parses raw DNS UDP queries entirely in memory.
+* **Synthetic NXDOMAIN**: Domains matching active blocklists immediately receive locally constructed RFC 1035 `NXDOMAIN` responses—zero network requests leak to external servers.
+* **RFC 2460 / RFC 8200 Checksums**: Dynamically calculates IPv4 header and IPv6 pseudo-header UDP checksums for standard RFC compliance.
+* **TCP RST Generation**: Does not run an unnecessary TCP state machine; when clients attempt TCP port 53 connections, Lemon responds with a TCP RST to cleanly fallback to UDP.
+* **Non-VPN Physical Forwarding**: Permitted queries route through the device's physical network via `DnsResolver.rawQuery` bound to `NET_CAPABILITY_NOT_VPN` to eliminate tunnel loops.
+* **Zero Logging**: DNS query history is never written to disk or recorded.
+
+### 4. Bundled Threat Intelligence Feeds
+Lemon embeds high-confidence feeds curated by HaGeZi:
+* 🛡️ **HaGeZi TIF Mini**: Built-in protection against malware, phishing, scamming, and command-and-control servers.
+* 🔞 **HaGeZi Adult (NSFW)**: Blocking pornographic and adult content networks.
+* 🚫 **HaGeZi Multi PRO Mini**: Blocking intrusive advertisers, telemetry trackers, and behavioral analytics.
+* 🔄 **Atomic Live Updates**: Update blocklist feeds directly from HaGeZi's upstream GitHub repositories with one tap.
+
+### 5. App Lock & Strict Mode
+* **Biometric & Passcode Lock**: Protect Lemon's configuration with device biometric authentication (`BiometricPrompt`) or secure passcode fallback.
+* **PBKDF2 Key Derivation**: Passcodes are protected using `PBKDF2WithHmacSHA256` with 100,000 iterations and a cryptographically secure 16-byte random salt.
+* **Settings Node Inspection**: When Strict Mode is active, Lemon monitors Android Settings hierarchy traversal to prevent tampering with accessibility permissions or VPN configurations.
+* **Irreversible Emergency Countdown**: Disabling Strict Mode requires initiating a 15-minute emergency timer before the 10-minute modification window opens.
+
+---
+
+## 🏗️ Technical Architecture
+
+Lemon follows modern Android architecture principles with unidirectional data flow (UDF):
+
+```
+┌────────────────────────────────────────────────────────┐
+│              Jetpack Compose UI Layer                  │
+│   SnapScreen  │  DnsScreen  │  SettingsScreen  │  Lock │
+│     Unbounded Typography  •  Host Grotesk Body         │
+│     Fruit Design Tokens   •  Floating Bottom Bar       │
+└───────────────────────────┬────────────────────────────┘
+                            │ StateFlow / Events
+┌───────────────────────────▼────────────────────────────┐
+│                  MainViewModel                         │
+│  State Management • Policy Coordination • Live Timers  │
+└───────┬───────────────────────────────┬────────────────┘
+        │                               │
+┌───────▼────────────────────────┐      │
+│   Persistence Layer (Room 2.6) │      │
+│   • LemonDatabase (v5)         │      │
+│   • SnapDao, DnsRuleDao        │      │
+│   • PendingRequestDao          │      │
+└────────────────────────────────┘      │
+                                        │
+        ┌───────────────────────────────┴────────────────┐
+        │                                                │
+┌───────▼────────────────────────┐      ┌────────────────▼────────────────┐
+│     SnapAccessibilityService   │      │        CoconutVpnService        │
+│ • Foreground Window Transition │      │ • Local TUN Loopback Interface  │
+│ • Zero-Latency Return Home     │      │ • In-Memory Packet Parser       │
+│ • Settings Anti-Tamper Guard   │      │ • HaGeZi Domain Bloom Resolvers │
+└────────────────────────────────┘      └─────────────────────────────────┘
+```
+
+* **Package ID**: `com.coconut` (manifest-declared, backwards-compatible across app upgrades).
+* **Target SDK**: Android 16 (API Level 36).
+* **Minimum SDK**: Android 10 (API Level 29).
+* **On-Device Storage**: SQLite via Android Room v5 with automated schema migrations.
+
+---
+
+## 🛠️ Building from Source
 
 ### Prerequisites
-- JDK 17 (LTS)
-- Android SDK with Build-Tools 35.0.0 / 34.0.0 and Platform SDK 35
 
-### Build Commands
+* **JDK**: Version 17 LTS (Adoptium Temurin or Android Studio bundled OpenJDK).
+* **Android SDK**: Build-Tools `35.0.0` or `34.0.0`, Platform SDK `36` / `35`.
+* **Gradle**: Gradle 8.11.1 (managed via included `gradlew` wrapper).
 
-#### Debug APK
-```bash
+### 1. Compile & Assemble Debug APK
+
+To compile and package the debug APK:
+
+```powershell
 .\gradlew.bat assembleDebug
 ```
-Output: `app\build\outputs\apk\debug\app-debug.apk`  
-Application ID: `com.coconut.debug` (does not collide with production)
 
-#### Production Release APK
-```bash
+* **Output Artifact**: `app/build/outputs/apk/debug/app-debug.apk`
+* **Application ID**: `com.coconut.debug` (installs side-by-side with production)
+
+### 2. Compile & Assemble Release APK
+
+To compile, optimize with R8, and package the release APK:
+
+```powershell
 .\gradlew.bat assembleRelease
 ```
-Output: `app\build\outputs\apk\release\app-release.apk`  
-Application ID: `com.coconut`
 
----
+* **Output Artifact**: `app/build/outputs/apk/release/app-release.apk`
+* **Application ID**: `com.coconut`
 
-## 4. Release Signing Configuration
+### 3. Keystore & Signing Configuration Precedence
 
-Release signing credentials must not be committed to version control. The build system reads signing configuration through the following precedence:
+Release builds require cryptographic signing. Lemon resolves credentials through the following hierarchical order:
 
-1. Environment variables:
-   - `COCONUT_KEYSTORE_PATH`
-   - `COCONUT_KEYSTORE_PASSWORD`
-   - `COCONUT_KEY_ALIAS`
-   - `COCONUT_KEY_PASSWORD`
-2. Gitignored `local.properties`:
+1. **Environment Variables**:
+   * `COCONUT_KEYSTORE_PATH`
+   * `COCONUT_KEYSTORE_PASSWORD`
+   * `COCONUT_KEY_ALIAS`
+   * `COCONUT_KEY_PASSWORD`
+2. **Git-Ignored `local.properties`**:
    ```properties
-   COCONUT_KEYSTORE_PATH=C:/path/to/keystore/coconut-release.jks
+   COCONUT_KEYSTORE_PATH=C:/path/to/keystore/lemon-release.jks
    COCONUT_KEYSTORE_PASSWORD=your_keystore_password
    COCONUT_KEY_ALIAS=your_key_alias
    COCONUT_KEY_PASSWORD=your_key_password
    ```
-3. Secure user directory default:
-   - `~/.coconut/keystore/coconut-release.jks`
+3. **Secure User Directory Default**:
+   * `~/.coconut/keystore/coconut-release.jks`
 
-If signing credentials are not configured, the release build fails explicitly rather than silently falling back to a debug certificate.
-
----
-
-## 5. Manual Installation & Setup
-
-1. **Install Release APK**:
-   Transfer `app-release.apk` to your phone and tap to install. When updating an existing installation, Android preserves all existing database records and Room v5 migrations apply automatically.
-
-2. **Enable Accessibility (For Snap)**:
-   - Open Coconut and go to the **Snap** tab.
-   - Tap the **Enable Accessibility** banner or navigate to `Android Settings > Accessibility > Installed Apps > Coconut`.
-   - Toggle Coconut to **ON** and confirm.
-
-3. **Enable VPN (For Local DNS)**:
-   - Go to the **DNS** tab in Coconut.
-   - Toggle **Local DNS** to **ON**.
-   - Android will present a system VPN connection request dialog. Tap **OK**.
-
-4. **Private DNS Compatibility (Important)**:
-   - Open `Android Settings > Connections / Network > More connection settings > Private DNS`.
-   - Set Private DNS to **Off** or **Automatic**.
-   - *Note*: If set to "Strict / Private DNS provider hostname", Android's system resolver connects directly over TLS (port 853) to the external provider, bypassing local port 53 VPN DNS.
-
-5. **Optional: Always-on VPN**:
-   - Open `Android Settings > Connections / Network > More connection settings > VPN`.
-   - Tap the gear icon next to **Coconut**.
-   - Enable **Always-on VPN**. (Do **NOT** enable *Block connections without VPN*).
-
-6. **Optional: Strict Mode**:
-   - Go to the **Settings** tab.
-   - Under **Strict Mode**, tap **Enable Strict Mode** and set a passcode.
-   - To unlock, request unlock and wait for the 15-minute countdown to elapse.
+> [!NOTE]
+> If signing credentials are not configured, `assembleRelease` fails explicitly with a clear configuration message rather than producing an insecure, unverified package.
 
 ---
 
-## 6. Blocklists & Custom Rules
+## 🧪 Verification & Testing
 
-- **Bundled Snapshots**: Coconut includes offline snapshots in `assets/`:
-  - `threat_blocklist.txt`: 10,000 high-confidence domains from HaGeZi TIF Mini.
-  - `adult_blocklist.txt`: 10,000 adult domains from HaGeZi NSFW.
-  - `adblock_blocklist.txt`: 10,000 ad/tracker domains from HaGeZi Multi PRO Mini.
-- **Updates**: In the **DNS** tab, tap the refresh icon to atomically download and install the latest rules directly from HaGeZi's official GitHub repository over HTTPS.
-- **Custom Rules**:
-  - Add individual domains under the **Blocked** or **Allowed** tabs.
-  - Use **Bulk Add** to paste multiple domains (one per line or space-separated).
-  - Use **Export Rules** and **Import Rules** in Settings to backup or transfer domain lists via clipboard.
+Lemon maintains a comprehensive suite of unit tests covering the core enforcement engines and data layer:
 
----
+### Run All Unit Tests
 
-## 7. Performance & Resource Footprint
+```powershell
+.\gradlew.bat test
+```
 
-- **Memory (RAM)**:
-  - Base process footprint: ~45MB to ~55MB on Android ART.
-  - Built-in blocklists in heap: ~1MB to ~1.2MB per 10,000 domains (~3.3MB total when all three feeds are active).
-  - DNS Cache: Bounded to 1,024 records (~150 KB).
-  - App Icon Cache: Bounded to 150 bitmaps (~3 MB).
-- **CPU & Battery**:
-  - Only port 53 DNS queries to `10.255.0.2` and `fd00::2` enter the TUN interface.
-  - Bulk internet traffic (media, streaming, downloads) routes directly over the physical network.
-  - Under typical usage, battery consumption is comparable to standard on-device DNS filters (approximately 1–3% daily battery share depending on query frequency).
+### Verified Test Suites
+
+* **`LemonPolicyCoordinatorTest`**: Verifies 30-day pending request lifecycles, timer countdown arithmetic, and state transitions.
+* **`DnsPacketParserTest`**: Verifies raw UDP DNS packet decoding, IPv4/IPv6 synthetic response generation, and RFC checksum calculations.
+* **`DatabaseMigrationTest`**: Validates Room database schema integrity across versions 1 through 5.
+* **`QuarantineTest`**: Confirms quarantine isolation logic and probation release scheduling.
+* **`DnsEngineTest`**: Evaluates HaGeZi prefix matching, IDN / Punycode normalization, and whitelist precedence.
 
 ---
 
-## 8. Privacy & Security Model
+## 🔒 Privacy & Security Model
 
-- **No Remote Servers**: Coconut runs no cloud backends, user tracking, or telemetry.
-- **Zero Query Logging**: Domain lookups are evaluated in memory and discarded. No query log or lookup history is saved to disk.
-- **No Destructive Operations**: Coconut never formats devices, wipes storage, or clears third-party application data.
-- **Graceful Uninstallation**: Coconut does not lock itself against device administrator removal. The user can disable Accessibility and VPN services at any time (subject to Strict Mode cooldown if configured) and uninstall the app cleanly.
+Lemon was engineered with an absolute zero-trust privacy posture:
+
+* 🛡️ **100% On-Device Execution**: Lemon has zero tracking SDKs, zero analytics pings, and zero external crash reporting libraries.
+* 🚫 **Zero Query Retention**: DNS queries are evaluated transiently in volatile RAM and immediately discarded. No lookup history or visited domain logs exist.
+* 📦 **Non-Destructive Enforcement**: Lemon never deletes user files, modifies system partitions, or clears third-party application storage.
+* 🔓 **Clean Uninstallation**: Lemon uses no hidden administrator device owner locks. You can deactivate Accessibility and VPN services at any time and uninstall the application cleanly.
 
 ---
 
-## 9. Known Limitations
-
-- **Strict Private DNS**: When Android Private DNS is configured with a strict hostname (e.g. `dns.google`), Android's OS resolver sends encrypted queries directly over port 853 to the remote server, bypassing port 53 VPN DNS.
-- **Browser Encrypted DNS (DoH)**: If a web browser (e.g., Chrome or Firefox) is explicitly configured to use "Secure DNS" (DNS-over-HTTPS) with an external provider, the browser makes encrypted queries over HTTPS (port 443), bypassing the system port 53 resolver. To filter browser traffic, set browser Secure DNS to "Default" or "Off".
-- **Direct IP Traffic**: Direct socket connections made to raw IP addresses without a DNS hostname lookup bypass DNS filtering.
-- **Accessibility Service Interruption**: On some aggressive vendor battery-saver implementations (e.g. Samsung Sleeping Apps, Xiaomi MIUI/HyperOS), Android may stop background accessibility services. Ensure Coconut is excluded from battery optimization.
+<div align="center">
+  <sub>Part of the <b>Fruits</b> product family • Crafted with Jetpack Compose & Kotlin</sub>
+</div>

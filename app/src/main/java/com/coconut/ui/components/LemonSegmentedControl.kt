@@ -53,7 +53,7 @@ data class LemonSegmentItem(
 )
 
 /**
- * iOS-styled segmented pill control with sliding animated indicator.
+ * Fruit Family segmented pill control with sliding animated indicator.
  * Dynamically scales with font scaling; features reduced-motion support,
  * accessibility semantics, and high contrast in both light and dark modes.
  */
@@ -72,7 +72,7 @@ fun LemonSegmentedControl(
     val density = LocalDensity.current
 
     // Dynamically adjust height to accommodate larger font scaling without clipping text
-    val controlHeight = (44 * density.fontScale.coerceIn(1.0f, 1.6f)).dp
+    val controlHeight = (42 * density.fontScale.coerceIn(1.0f, 1.5f)).dp
 
     // Reduced motion support
     val animatorScale = remember {
@@ -121,9 +121,9 @@ fun LemonSegmentedControl(
             }
 
             val pillBorder = if (LemonTheme.isDark) {
-                Modifier.border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(100.dp))
+                Modifier.border(1.dp, Color(0x28FFFFFF), RoundedCornerShape(100.dp))
             } else {
-                Modifier.border(1.dp, Color(0x14000000), RoundedCornerShape(100.dp))
+                Modifier.border(1.dp, Color(0x10000000), RoundedCornerShape(100.dp))
             }
 
             Box(
