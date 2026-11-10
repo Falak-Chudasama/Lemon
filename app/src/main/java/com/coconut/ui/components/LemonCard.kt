@@ -152,7 +152,7 @@ fun LemonGroupedContainer(
 }
 
 /**
- * Inset-grouped row item with leading icon squircle, title, subtitle, trailing content, and divider.
+ * Inset-grouped row item with leading icon/content, title, subtitle, trailing content, and divider.
  */
 @Composable
 fun LemonGroupedRow(
@@ -161,6 +161,7 @@ fun LemonGroupedRow(
     subtitle: String? = null,
     leadingIcon: ImageVector? = null,
     leadingIconTint: Color = LemonTheme.colors.brandAmber,
+    leadingContent: (@Composable () -> Unit)? = null,
     showDivider: Boolean = true,
     dividerStartInset: Dp = 16.dp,
     onClick: (() -> Unit)? = null,
@@ -180,7 +181,10 @@ fun LemonGroupedRow(
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (leadingIcon != null) {
+            if (leadingContent != null) {
+                leadingContent()
+                Spacer(modifier = Modifier.width(14.dp))
+            } else if (leadingIcon != null) {
                 Box(
                     modifier = Modifier
                         .size(36.dp)

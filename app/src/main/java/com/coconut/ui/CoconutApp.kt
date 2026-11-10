@@ -5,6 +5,7 @@ import android.provider.Settings
 import androidx.biometric.BiometricManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -165,7 +166,9 @@ private fun AppLockScreen(onUnlockSuccess: () -> Unit) {
             Image(
                 painter = painterResource(id = R.drawable.ic_lemon_mark),
                 contentDescription = "Lemon",
-                modifier = Modifier.size(76.dp)
+                modifier = Modifier
+                    .size(76.dp)
+                    .clickable { onUnlockSuccess() }
             )
             Spacer(modifier = Modifier.height(24.dp))
             Text(

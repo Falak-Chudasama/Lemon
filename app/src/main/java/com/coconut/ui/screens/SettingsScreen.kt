@@ -8,7 +8,6 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,7 +35,6 @@ import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -68,6 +66,8 @@ import com.coconut.ui.ThemePreferences
 import com.coconut.ui.components.LemonBadge
 import com.coconut.ui.components.LemonBadgeStyle
 import com.coconut.ui.components.LemonCard
+import com.coconut.ui.components.LemonGroupedContainer
+import com.coconut.ui.components.LemonGroupedRow
 import com.coconut.ui.components.LemonSectionEyebrow
 import com.coconut.ui.components.LemonSegmentItem
 import com.coconut.ui.components.LemonSegmentedControl
@@ -75,14 +75,12 @@ import com.coconut.ui.components.LemonSwitch
 import kotlinx.coroutines.launch
 
 /**
- * Redesigned Settings Screen conforming to the Fruit Family design system.
- * Features:
- * - Unbounded geometric header with Lemon brand icon
- * - Inset grouped cards with clean 1px dividers
- * - Responsive 3-mode theme selector (System, Light, Dark)
- * - Security section (App Lock, instant lock, Accessibility permissions)
- * - Networking & Rule data backup (plain text export / import)
- * - Official Lemon branding block with version badge and privacy statement
+ * Pristine Redesigned Settings Screen conforming to the Fruits Family Quiet Utility Design System.
+ * - Grouped container sections for Security, Appearance, Networking, and Data
+ * - Tactile switches and chevron drill-down navigation
+ * - Responsive 3-mode theme switcher (System, Light, Dark)
+ * - Centered ecosystem branding card
+ * - Safe bottom padding (120dp) preventing bottom dock clipping
  */
 @Composable
 fun SettingsScreen(viewModel: MainViewModel) {
@@ -98,8 +96,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 140.dp),
+            .padding(horizontal = 16.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 160.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Status bar top spacing
@@ -107,16 +105,16 @@ fun SettingsScreen(viewModel: MainViewModel) {
             Spacer(modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars))
         }
 
-        // 1. Header (Fruit Family PageShell pattern with Unbounded display title)
+        // 1. Page Header (Fruit Family PageShell pattern with Unbounded display title)
         item(key = "settings_header") {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Surface(
                         shape = LemonTheme.shapes.iconSquircle,
-                        color = LemonTheme.colors.cardSecondaryBackground,
+                        color = LemonTheme.colors.cardBackground,
                         border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
                         modifier = Modifier.size(40.dp)
                     ) {
@@ -136,6 +134,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     Text(
                         text = "Settings",
                         style = LemonTheme.typography.displayLarge.copy(
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.Bold
                         ),
                         color = LemonTheme.colors.textPrimary
@@ -146,324 +145,192 @@ fun SettingsScreen(viewModel: MainViewModel) {
 
                 Text(
                     text = "Preferences, on-device security, and rules management.",
-                    style = LemonTheme.typography.bodyMedium,
+                    style = LemonTheme.typography.bodyMedium.copy(
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    ),
                     color = LemonTheme.colors.textSecondary
                 )
             }
         }
 
         // 2. Security Section
-        item(key = "security_section") {
+        item(key = "security_eyebrow") {
             LemonSectionEyebrow(title = "SECURITY")
-            Spacer(modifier = Modifier.height(4.dp))
-
-            LemonCard {
-                // App Lock Toggle Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "App Lock",
-                            style = LemonTheme.typography.titleSmall.copy(
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = LemonTheme.colors.textPrimary
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Require biometric or PIN when opening Lemon",
-                            style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = LemonTheme.colors.textSecondary
+        }
+        item(key = "security_card") {
+            LemonGroupedContainer {
+                LemonGroupedRow(
+                    title = "App Lock",
+                    subtitle = "Require biometric or PIN when opening Lemon",
+                    showDivider = true,
+                    trailingContent = {
+                        LemonSwitch(
+                            checked = state.isAppLockEnabled,
+                            onCheckedChange = viewModel::toggleAppLockEnabled
                         )
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    LemonSwitch(
-                        checked = state.isAppLockEnabled,
-                        onCheckedChange = viewModel::toggleAppLockEnabled
-                    )
-                }
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 12.dp),
-                    thickness = 1.dp,
-                    color = LemonTheme.colors.separator
                 )
 
-                // Lock Lemon Now Row
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(LemonTheme.shapes.iconSquircle)
-                        .clickable(onClick = viewModel::lockLemon)
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f, fill = false)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(LemonTheme.shapes.iconSquircle)
-                                .background(LemonTheme.colors.brandYellow.copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
+                LemonGroupedRow(
+                    title = "Lock Lemon",
+                    subtitle = "Instantly return to the secure lock screen",
+                    showDivider = true,
+                    onClick = viewModel::lockLemon,
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = "Lock",
+                            tint = LemonTheme.colors.textTertiary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                )
+
+                LemonGroupedRow(
+                    title = "Accessibility Service",
+                    subtitle = "Required for instant app launch interception",
+                    showDivider = false,
+                    onClick = {
+                        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                        context.startActivity(intent)
+                    },
+                    trailingContent = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            LemonBadge(
+                                text = if (state.isAccessibilityGranted) "Active" else "Inactive",
+                                style = if (state.isAccessibilityGranted) LemonBadgeStyle.SUCCESS else LemonBadgeStyle.DANGER,
+                                showDot = true
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
                             Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = LemonTheme.colors.brandAmber,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Lock Lemon",
-                                style = LemonTheme.typography.titleSmall.copy(
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                ),
-                                color = LemonTheme.colors.textPrimary
-                            )
-                            Text(
-                                text = "Instantly trigger the biometric lock screen",
-                                style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                color = LemonTheme.colors.textSecondary
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = "Accessibility",
+                                tint = LemonTheme.colors.textTertiary,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
-
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = "Lock",
-                        tint = LemonTheme.colors.textTertiary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 12.dp),
-                    thickness = 1.dp,
-                    color = LemonTheme.colors.separator
                 )
-
-                // Accessibility Status & Direct Navigation Row
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(LemonTheme.shapes.iconSquircle)
-                        .clickable {
-                            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                            context.startActivity(intent)
-                        }
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 12.dp)
-                    ) {
-                        Text(
-                            text = "Accessibility Service",
-                            style = LemonTheme.typography.titleSmall.copy(
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = LemonTheme.colors.textPrimary
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Required for immediate app launch interception",
-                            style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = LemonTheme.colors.textSecondary
-                        )
-                    }
-                    LemonBadge(
-                        text = if (state.isAccessibilityGranted) "Active" else "Inactive",
-                        style = if (state.isAccessibilityGranted) LemonBadgeStyle.SUCCESS else LemonBadgeStyle.DANGER,
-                        showDot = true
-                    )
-                }
             }
         }
 
         // 3. Appearance Section
-        item(key = "appearance_section") {
+        item(key = "appearance_eyebrow") {
             LemonSectionEyebrow(title = "APPEARANCE")
-            Spacer(modifier = Modifier.height(4.dp))
-
-            LemonCard {
-                Text(
-                    text = "Theme Appearance",
-                    style = LemonTheme.typography.titleSmall.copy(
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = LemonTheme.colors.textPrimary
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Switch between quiet light paper canvas and obsidian warm-black",
-                    style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    color = LemonTheme.colors.textSecondary
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                val themeSegments = listOf(
-                    LemonSegmentItem(id = AppThemeMode.SYSTEM.name, title = "System"),
-                    LemonSegmentItem(id = AppThemeMode.LIGHT.name, title = "Light"),
-                    LemonSegmentItem(id = AppThemeMode.DARK.name, title = "Dark")
-                )
-
-                LemonSegmentedControl(
-                    items = themeSegments,
-                    selectedId = currentThemeMode.name,
-                    onItemSelected = { selectedName ->
-                        val selectedMode = AppThemeMode.valueOf(selectedName)
-                        viewModel.themePreferences.setThemeMode(selectedMode)
-                    }
-                )
-            }
         }
-
-        // 4. Updates & Networking Section
-        item(key = "updates_section") {
-            LemonSectionEyebrow(title = "NETWORKING")
-            Spacer(modifier = Modifier.height(4.dp))
-
-            LemonCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+        item(key = "appearance_card") {
+            LemonGroupedContainer {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Wi-Fi Only Updates",
-                            style = LemonTheme.typography.titleSmall.copy(
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = LemonTheme.colors.textPrimary
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Prevent feed and blocklist updates over cellular data",
-                            style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = LemonTheme.colors.textSecondary
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    LemonSwitch(
-                        checked = state.dnsConfig?.wifiOnly ?: true,
-                        onCheckedChange = { viewModel.updateDnsConfiguration(wifiOnly = it) }
+                    Text(
+                        text = "Theme Appearance",
+                        style = LemonTheme.typography.titleSmall.copy(
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = LemonTheme.colors.textPrimary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Switch between light paper canvas and obsidian warm-black",
+                        style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        color = LemonTheme.colors.textSecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    val themeSegments = listOf(
+                        LemonSegmentItem(id = AppThemeMode.SYSTEM.name, title = "System"),
+                        LemonSegmentItem(id = AppThemeMode.LIGHT.name, title = "Light"),
+                        LemonSegmentItem(id = AppThemeMode.DARK.name, title = "Dark")
+                    )
+
+                    LemonSegmentedControl(
+                        items = themeSegments,
+                        selectedId = currentThemeMode.name,
+                        onItemSelected = { selectedName ->
+                            val selectedMode = AppThemeMode.valueOf(selectedName)
+                            viewModel.themePreferences.setThemeMode(selectedMode)
+                        }
                     )
                 }
             }
         }
 
-        // 5. DNS Rules Backup Section
-        item(key = "dns_rules_section") {
-            LemonSectionEyebrow(title = "DATA & RULES")
-            Spacer(modifier = Modifier.height(4.dp))
-
-            LemonCard {
-                Text(
-                    text = "Manage Custom Rules",
-                    style = LemonTheme.typography.titleSmall.copy(
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = LemonTheme.colors.textPrimary
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Export your rules to clipboard or import rules from a text backup.",
-                    style = LemonTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    color = LemonTheme.colors.textSecondary
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Export Rules Button
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                val text = viewModel.exportRules()
-                                val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                cm.setPrimaryClip(ClipData.newPlainText("Lemon Rules", text))
-                                Toast.makeText(context, "Rules copied to clipboard", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        shape = LemonTheme.shapes.button,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = LemonTheme.colors.cardSecondaryBackground,
-                            contentColor = LemonTheme.colors.textPrimary
-                        ),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = "Export",
-                            modifier = Modifier.size(16.dp),
-                            tint = LemonTheme.colors.textPrimary
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Export",
-                            style = LemonTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.SemiBold
-                            )
+        // 4. Networking Section
+        item(key = "networking_eyebrow") {
+            LemonSectionEyebrow(title = "NETWORKING")
+        }
+        item(key = "networking_card") {
+            LemonGroupedContainer {
+                LemonGroupedRow(
+                    title = "Wi-Fi Only Updates",
+                    subtitle = "Prevent feed and blocklist updates over cellular data",
+                    showDivider = false,
+                    trailingContent = {
+                        LemonSwitch(
+                            checked = state.dnsConfig?.wifiOnly ?: true,
+                            onCheckedChange = { viewModel.updateDnsConfiguration(wifiOnly = it) }
                         )
                     }
-
-                    // Import Rules Button
-                    Button(
-                        onClick = { showImportDialog = true },
-                        shape = LemonTheme.shapes.button,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = LemonTheme.colors.cardSecondaryBackground,
-                            contentColor = LemonTheme.colors.textPrimary
-                        ),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Upload,
-                            contentDescription = "Import",
-                            modifier = Modifier.size(16.dp),
-                            tint = LemonTheme.colors.textPrimary
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Import",
-                            style = LemonTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        )
-                    }
-                }
+                )
             }
         }
 
-        // 6. Application Details & Fruit Family About Section
+        // 5. Data & Rules Backup Section
+        item(key = "data_eyebrow") {
+            LemonSectionEyebrow(title = "DATA & RULES")
+        }
+        item(key = "data_card") {
+            LemonGroupedContainer {
+                LemonGroupedRow(
+                    title = "Export Rules",
+                    subtitle = "Copy all custom domain rules to clipboard",
+                    showDivider = true,
+                    onClick = {
+                        scope.launch {
+                            val text = viewModel.exportRules()
+                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            cm.setPrimaryClip(ClipData.newPlainText("Lemon Rules", text))
+                            Toast.makeText(context, "Rules copied to clipboard", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = "Export",
+                            tint = LemonTheme.colors.textTertiary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                )
+
+                LemonGroupedRow(
+                    title = "Import Rules",
+                    subtitle = "Restore domain rules from clipboard text backup",
+                    showDivider = false,
+                    onClick = { showImportDialog = true },
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.Default.Upload,
+                            contentDescription = "Import",
+                            tint = LemonTheme.colors.textTertiary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                )
+            }
+        }
+
+        // 6. Application Details & Fruit Family Ecosystem Card
         item(key = "app_details_section") {
             LemonCard(
-                backgroundColor = LemonTheme.colors.cardBackground
+                backgroundColor = LemonTheme.colors.cardBackground,
+                contentPadding = PaddingValues(24.dp)
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -473,7 +340,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         shape = LemonTheme.shapes.cardLarge,
                         color = LemonTheme.colors.cardSecondaryBackground,
                         border = BorderStroke(1.dp, LemonTheme.colors.cardBorder),
-                        modifier = Modifier.size(64.dp)
+                        modifier = Modifier.size(56.dp)
                     ) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -482,16 +349,17 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             Image(
                                 painter = painterResource(id = R.drawable.ic_lemon_mark),
                                 contentDescription = "Lemon Mark",
-                                modifier = Modifier.size(44.dp)
+                                modifier = Modifier.size(36.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
                         text = "Lemon",
                         style = LemonTheme.typography.displaySmall.copy(
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         ),
                         color = LemonTheme.colors.textPrimary
@@ -502,14 +370,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     Text(
                         text = "Version ${BuildConfig.VERSION_NAME} • Fruits Family",
                         style = LemonTheme.typography.bodySmall.copy(
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
                         ),
                         color = LemonTheme.colors.textSecondary,
                         textAlign = TextAlign.Center
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
                         text = "100% On-Device • Zero Telemetry • Open Privacy",
@@ -522,13 +390,13 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         textAlign = TextAlign.Center
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
                         text = "Standard uninstallable application. Lemon never uses Device Owner or Device Administrator to restrict device management.",
                         style = LemonTheme.typography.bodySmall.copy(
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp
                         ),
                         color = LemonTheme.colors.textTertiary,
                         textAlign = TextAlign.Center
@@ -538,7 +406,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
         }
     }
 
-    // Import Dialog
+    // Import Rules Dialog
     if (showImportDialog) {
         AlertDialog(
             onDismissRequest = {

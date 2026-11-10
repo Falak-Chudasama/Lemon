@@ -49,6 +49,34 @@ Lemon operates entirely on your physical device. It requires **zero accounts, ze
 
 ---
 
+## 📸 Visual Tour & Showcase
+
+### 1. The Snap Dashboard (App Launch Interception)
+
+| Dark Obsidian Canvas | Light Warm Paper Canvas |
+| :---: | :---: |
+| <img src="docs/screenshots/screen_snap_dark.png" width="320" alt="The Snap (Dark)" /> | <img src="docs/screenshots/screen_snap_light.png" width="320" alt="The Snap (Light)" /> |
+
+### 2. Local DNS Protection & HaGeZi Feeds
+
+| Dark Obsidian Canvas | Light Warm Paper Canvas |
+| :---: | :---: |
+| <img src="docs/screenshots/screen_dns_dark.png" width="320" alt="DNS Protection (Dark)" /> | <img src="docs/screenshots/screen_dns_light.png" width="320" alt="DNS Protection (Light)" /> |
+
+### 3. Settings & Fruits Ecosystem
+
+| Dark Obsidian Canvas | Light Warm Paper Canvas |
+| :---: | :---: |
+| <img src="docs/screenshots/screen_settings_dark.png" width="320" alt="Settings (Dark)" /> | <img src="docs/screenshots/screen_settings_light.png" width="320" alt="Settings (Light)" /> |
+
+### 4. Biometric App Lock & Intercepted Overlay
+
+| Biometric App Lock Screen | Application Intercepted Dialog |
+| :---: | :---: |
+| <img src="docs/screenshots/screen_app_lock.png" width="320" alt="App Lock Screen" /> | <img src="docs/screenshots/screen_blocked.png" width="320" alt="Blocked App Dialog" /> |
+
+---
+
 ## 🎨 Fruits Ecosystem & Design System
 
 Lemon implements the authoritative design specification documented across the Fruits application suite (`Basket/docs/UI`):
